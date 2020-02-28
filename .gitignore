@@ -1,0 +1,15 @@
+# ignore files
+*~
+*.swp
+*.orig
+*.bak
+*.pyc
+*.log
+*.db
+
+# ignore folders
+*.egg-info/
+*.dist-info/
+__pycache__/
+/dist/
+/build/

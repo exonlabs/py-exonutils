@@ -1,0 +1,5 @@
+include Makefile LICENSE *.md
+
+graft examples
+
+global-exclude *.py[co]
