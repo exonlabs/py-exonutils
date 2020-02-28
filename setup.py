@@ -26,8 +26,13 @@ setup(
     python_requires='>=3.5',
     install_requires=[
         'setproctitle>=1.1.10',
+        'simplejson>=3.17.0',
         'sqlalchemy>=1.3.13',
         'alembic>=1.4.0',
+        'flask>=1.1.1',
+        'Jinja2>=2.11.1',
+        'gunicorn>=20.0.4',
+        'gevent>=1.4.0',
     ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
