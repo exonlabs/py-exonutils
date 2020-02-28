@@ -9,7 +9,7 @@ from setuptools import setup
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 __PKGNAME__ = 'exonutils'
-__VERSION__ = '1.0.dev'
+__VERSION__ = '1.0'
 
 
 setup(
