@@ -4,7 +4,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import logging
-import uuid
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
 from traceback import format_exc
@@ -37,6 +36,7 @@ class BaseModel(object):
 
     @classmethod
     def create(cls, dbs, _commit=True, **attrs):
+        import uuid
         obj = cls()
         obj.guid = uuid.uuid5(uuid.uuid1(), uuid.uuid4().hex).hex
         for attr, value in attrs.items():

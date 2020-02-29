@@ -3,9 +3,6 @@
     :copyright: 2020, ExonLabs. All rights reserved.
     :license: BSD, see LICENSE for more details.
 """
-import re
-from builtins import input
-from getpass import getpass
 
 
 class ConsoleInput(object):
@@ -24,12 +21,17 @@ class ConsoleInput(object):
 
     @classmethod
     def _input(cls, msg, hidden=False):
+        from builtins import input
+        from getpass import getpass
+
         fin = getpass if hidden else input
         return fin(cls._msg(msg)).strip()
 
     @classmethod
     def get(cls, msg, default=None, trials=3, hidden=False, regex=None,
             validator_callback=None):
+        import re
+
         if default is None:
             msg = "%s:" % msg
         else:
@@ -70,6 +72,8 @@ class ConsoleInput(object):
 
     @classmethod
     def number(cls, msg, default=None, trials=3, vmin=None, vmax=None):
+        import re
+
         def validator(res):
             if not re.search('^[0-9-]+$', res):
                 print(cls._err("invalid number format"))
@@ -90,6 +94,8 @@ class ConsoleInput(object):
 
     @classmethod
     def decimal(cls, msg, default=None, trials=3, vmin=None, vmax=None):
+        import re
+
         def validator(res):
             if not re.search('^[0-9-]+(.[0-9]+)?$', res):
                 print(cls._err("invalid decimal format"))
