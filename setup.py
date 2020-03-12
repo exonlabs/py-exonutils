@@ -9,7 +9,7 @@ from setuptools import setup
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 __PKGNAME__ = 'exonutils'
-__VERSION__ = '1.2'
+__VERSION__ = '1.2.1.dev'
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
