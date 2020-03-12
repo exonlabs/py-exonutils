@@ -10,7 +10,7 @@ from setuptools import setup
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 __PKGNAME__ = 'exonutils'
-__VERSION__ = '1.1.dev'
+__VERSION__ = '1.1'
 
 PY3 = sys.version_info >= (3, 0)
 
