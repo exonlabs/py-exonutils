@@ -18,8 +18,8 @@ class Service(BaseProcess):
     def __init__(self, name, logger=None):
         super(Service, self).__init__(name, logger=logger)
 
-        # threads shared context
-        self.context = {}
+        # shared global data
+        self.globdata = {}
 
         # runtime tasks threads buffer
         self._threads = dict()
@@ -60,7 +60,7 @@ class Service(BaseProcess):
                 # start new task thread
                 if T.__name__ not in self._threads:
                     self.log.debug("start <TASK:%s>" % T.__name__)
-                    t = T(self, context=self.context)
+                    t = T(self, globdata=self.globdata)
                     t.start()
                     self._threads[T.__name__] = t
             except Exception:
@@ -96,11 +96,11 @@ class Service(BaseProcess):
 
 class ServiceTask(threading.Thread):
 
-    def __init__(self, service, context={}):
+    def __init__(self, service, globdata={}):
         super(ServiceTask, self).__init__(name=self.__class__.__name__)
 
-        # threads shared context
-        self.context = context
+        # shared global data
+        self.globdata = globdata
 
         # task terminate event
         self.term_event = service.term_event

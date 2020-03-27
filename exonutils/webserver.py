@@ -32,8 +32,8 @@ class WebServer(BaseProcess):
     def __init__(self, name, options={}, logger=None):
         super(WebServer, self).__init__(name, logger=logger)
 
-        # views shared context
-        self.context = {}
+        # shared global data
+        self.globdata = {}
 
         # websrv attrs
         self.options = options
@@ -131,7 +131,7 @@ class WebServer(BaseProcess):
             view.initialize(self, app)
             for url, endpoint in view.routes:
                 app.add_url_rule(url, view_func=view.as_view(
-                    endpoint, self, context=self.context))
+                    endpoint, self, globdata=self.globdata))
 
         return app
 
@@ -233,12 +233,12 @@ class RESTWebServer(WebServer):
 class WebView(MethodView):
     routes = []
 
-    def __init__(self, webserver, context={}):
+    def __init__(self, webserver, globdata={}):
         self.name = self.__class__.__name__
         self.response_handler = webserver.response_handler
 
-        # views shared context
-        self.context = context
+        # shared global data
+        self.globdata = globdata
 
         # view logger
         self.log = logging.getLogger(
