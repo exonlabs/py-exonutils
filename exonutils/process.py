@@ -7,18 +7,12 @@ import sys
 import signal
 import logging
 
-# dict mapping all signal numbers to names
-SIG_NAMES = dict(
-    (getattr(signal, name), name.lower()) for name in dir(signal)
-    if name[:3] == "SIG" and name[3] != "_")
-
 
 class BaseProcess(object):
 
     # signals to be handled by process
-    SIGNALS = [getattr(signal, 'SIG%s' % n)
-               for n in "INT QUIT TERM HUP USR1 USR2".split()
-               if ('SIG%s' % n).lower() in SIG_NAMES.values()]
+    signals = [signal.SIGINT, signal.SIGQUIT, signal.SIGTERM,
+               signal.SIGHUP, signal.SIGUSR1, signal.SIGUSR2]
 
     def __init__(self, name, logger=None):
         # process name
@@ -68,7 +62,7 @@ class BaseProcess(object):
                               "'setproctitle' package not installed")
 
         # set process signal handler
-        for s in self.SIGNALS:
+        for s in self.signals:
             signal.signal(s, self.signal)
 
         # run process
@@ -85,13 +79,18 @@ class BaseProcess(object):
 
     # process signal handler dispatcher
     def signal(self, sig, frame):
-        signame = SIG_NAMES[sig]
-        self.log.debug("received signal: %s" % signame.upper())
-        handler = getattr(self, "handle_%s" % signame, None)
+        try:
+            signame = signal.Signals(sig).name
+        except:
+            res = [k for k, v in signal.__dict__.iteritems() if v == sig]
+            signame = '' if not res else res[0]
+
+        self.log.debug("received signal: %s" % signame)
+        handler = getattr(self, "handle_%s" % signame.lower(), None)
         if handler:
             handler()
         else:
-            self.log.debug("no handler defined, nothing to do")
+            self.log.debug("no signal handler defined")
 
     def handle_sigint(self):
         self.stop()

@@ -90,17 +90,8 @@ class Service(BaseProcess):
         else:
             self.term_event.clear()
 
-    def handle_sighup(self):
-        self._tasks_reload = True
-
     def handle_sigusr1(self):
-        rootlogger = logging.getLogger()
-        if rootlogger.level != logging.DEBUG:
-            rootlogger.setLevel(logging.DEBUG)
-            self.log.info("debugging ON")
-        else:
-            rootlogger.setLevel(logging.INFO)
-            self.log.info("debugging OFF")
+        self._tasks_reload = True
 
 
 class ServiceTask(threading.Thread):
@@ -150,6 +141,6 @@ class ServiceTask(threading.Thread):
     def stop(self):
         raise SystemExit()
 
-    def sleep(self, timeout=0):
+    def sleep(self, timeout):
         if self.term_event.wait(timeout=timeout):
             raise SystemExit()
