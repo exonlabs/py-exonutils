@@ -6,7 +6,6 @@
 import logging
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
-from traceback import format_exc
 
 # supported DB backends
 DB_BACKENDS = ['sqlite', 'pgsql', 'mysql']
@@ -181,13 +180,17 @@ class DatabaseHandler(object):
 
 
 def init_database(dbh, models):
-    from alembic.operations import Operations
-    from alembic.migration import MigrationContext
-
-    # adjust alembic logging
-    logger = logging.getLogger('alembic')
-    logger.name = 'dbm'
-    logger.setLevel(logging.DEBUG if dbh.debug else logging.ERROR)
+    try:
+        from alembic.operations import Operations
+        from alembic.migration import MigrationContext
+        # adjust alembic logging
+        logger = logging.getLogger('alembic')
+        logger.name = 'dbm'
+        logger.setLevel(logging.DEBUG if dbh.debug else logging.ERROR)
+    except ImportError:
+        MigrationContext = None  # noqa
+        print("\n*** Warning: please install 'alembic' package " +
+              "to enable db migrations ***\n")
 
     err = ''
     try:
@@ -199,11 +202,12 @@ def init_database(dbh, models):
         BaseModel.metadata.create_all(dbh.engine)
 
         # execute migrations
-        conn = dbh.engine.connect()
-        op = Operations(MigrationContext.configure(conn))
-        for Model in models:
-            Model.migrate(op, dbs)
-            dbs.commit()
+        if MigrationContext:
+            conn = dbh.engine.connect()
+            op = Operations(MigrationContext.configure(conn))
+            for Model in models:
+                Model.migrate(op, dbs)
+                dbs.commit()
 
         # load initial models data
         for Model in models:
@@ -211,6 +215,7 @@ def init_database(dbh, models):
             dbs.commit()
 
     except Exception:
+        from traceback import format_exc
         err = format_exc().strip()
     finally:
         dbh.close()

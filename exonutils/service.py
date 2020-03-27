@@ -3,10 +3,9 @@
     :copyright: 2020, ExonLabs. All rights reserved.
     :license: BSD, see LICENSE for more details.
 """
-import logging
 import threading
 import time
-from traceback import format_exc
+import logging
 
 from .process import BaseProcess
 
@@ -65,6 +64,7 @@ class Service(BaseProcess):
                     t.start()
                     self._threads[T.__name__] = t
             except Exception:
+                from traceback import format_exc
                 self.log.error(format_exc().strip())
 
         # checking threads interval
@@ -136,6 +136,7 @@ class ServiceTask(threading.Thread):
             while not self.term_event.is_set():
                 self.execute()
         except Exception:
+            from traceback import format_exc
             self.log.error(format_exc().strip())
         except SystemExit:
             pass
