@@ -18,6 +18,11 @@ class Task1(ServiceTask):
 
     def execute(self):
         self.log.debug("running ...")
+        k = self.shared_buffer.get('k')
+        if k is not None:
+            self.shared_buffer.set('k', k + 1)
+        else:
+            self.shared_buffer.set('k', 0)
         self.sleep(5)
 
     def terminate(self):
@@ -31,6 +36,7 @@ class Task2(ServiceTask):
 
     def execute(self):
         self.log.debug("running ...")
+        self.log.info("k = %s" % self.shared_buffer.get('k'))
         self.sleep(3)
 
     def terminate(self):

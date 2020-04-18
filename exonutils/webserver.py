@@ -19,6 +19,7 @@ from flask.views import MethodView
 from jinja2 import BaseLoader
 
 from .process import BaseProcess
+from .misc import shared_buffer
 
 DEFAULT_HOST = '0.0.0.0'
 DEFAULT_PORT = 8000
@@ -26,14 +27,13 @@ DEFAULT_PORT = 8000
 
 class WebServer(BaseProcess):
 
-    # websrv views list
-    views = []
-
     def __init__(self, name, options={}, logger=None):
         super(WebServer, self).__init__(name, logger=logger)
 
-        # shared global data
-        self.globdata = {}
+        # websrv views list
+        self.views = []
+        # shared global buffer
+        self.shared_buffer = shared_buffer()
 
         # websrv attrs
         self.options = options
@@ -106,13 +106,13 @@ class WebServer(BaseProcess):
 
         # force specific app options
         app.config['APP_DEBUG'] = debug
-        app.config['TEMPLATES_AUTO_RELOAD'] = debug
+        app.config['TEMPLATES_AUTO_RELOAD'] = True
         app.config['TRAP_HTTP_EXCEPTIONS'] = True
         app.config['TRAP_BAD_REQUEST_ERRORS'] = True
 
         # set jinja options
         app.jinja_env.autoescape = True
-        app.jinja_env.auto_reload = debug
+        app.jinja_env.auto_reload = True
         if self.tpl_loader and isinstance(self.tpl_loader, BaseLoader):
             app.jinja_loader = self.tpl_loader
 
@@ -130,8 +130,7 @@ class WebServer(BaseProcess):
         for view in self.views:
             view.initialize(self, app)
             for url, endpoint in view.routes:
-                app.add_url_rule(url, view_func=view.as_view(
-                    endpoint, self, globdata=self.globdata))
+                app.add_url_rule(url, view_func=view.as_view(endpoint, self))
 
         return app
 
@@ -233,12 +232,12 @@ class RESTWebServer(WebServer):
 class WebView(MethodView):
     routes = []
 
-    def __init__(self, webserver, globdata={}):
+    def __init__(self, webserver):
         self.name = self.__class__.__name__
         self.response_handler = webserver.response_handler
 
-        # shared global data
-        self.globdata = globdata
+        # shared global buffer
+        self.shared_buffer = webserver.shared_buffer
 
         # view logger
         self.log = logging.getLogger(

@@ -24,8 +24,7 @@ class BaseProcess(object):
         if logger and isinstance(logger, logging.Logger):
             self.log = logger
         else:
-            self.log = logging.getLogger()
-            self.log.name = self.name
+            self.log = logging.getLogger(self.name)
 
     def initialize(self):
         pass
@@ -58,7 +57,7 @@ class BaseProcess(object):
                 from setproctitle import setproctitle
                 setproctitle(str(self.proctitle).strip())
             except ImportError:
-                self.log.warn("ignoring proctitle value, " +
+                self.log.warn("ignoring process.proctitle value, " +
                               "'setproctitle' package not installed")
 
         # set process signal handler
