@@ -10,7 +10,7 @@ from sqlalchemy.ext.declarative import as_declarative, declared_attr
 __all__ = ['BaseModel', 'DatabaseHandler']
 
 # supported DB backends
-DB_BACKENDS = ['sqlite', 'pgsql', 'mysql']
+DB_BACKENDS = ['sqlite', 'pgsql', 'mysql', 'mariadb']
 
 
 @as_declarative()
@@ -119,7 +119,7 @@ class DatabaseHandler(object):
         elif backend == 'pgsql':
             driver = 'postgresql+psycopg2'
             query = {'client_encoding': 'utf8'}
-        elif backend == 'mysql':
+        elif backend in ['mysql', 'mariadb']:
             driver = 'mysql+mysqldb'
             query = {'charset': 'utf8mb4'}
 
@@ -138,7 +138,7 @@ class DatabaseHandler(object):
                 connect_args.update({
                     'options': "-c statement_timeout=%s" % query_timeout,
                 })
-            elif backend == 'mysql':
+            elif backend in ['mysql', 'mariadb']:
                 connect_args.update({
                     'read_timeout': query_timeout,
                     'write_timeout': query_timeout,
@@ -237,7 +237,7 @@ def interactive_db_config(backends=None, default=None):
     if cfg['backend'] == 'sqlite':
         cfg['database'] = Input.get("Enter db path")
     else:
-        default_port = 3306 if cfg['backend'] == 'mysql' else 5432
+        default_port = 5432 if cfg['backend'] == 'pgsql' else 3306
         cfg['database'] = Input.get("Enter db name")
         cfg['host'] = Input.get("Enter db host", default='localhost')
         cfg['port'] = Input.number("Enter db port", default=default_port)
@@ -347,6 +347,10 @@ def interactive_mysql_setup(cfg, quiet=False):
     if err:
         raise RuntimeError(err)
 
+    def info(msg):
+        if not quiet:
+            print(msg)
+
     host = cfg.get('host', None) or 'localhost'
     port = int(cfg.get('port', None) or 3306)
 
@@ -363,10 +367,6 @@ def interactive_mysql_setup(cfg, quiet=False):
     # get superuser access for database setup
     adm_user = Input.get("Enter DB admin user", default='root')
     adm_pass = Input.get("Enter DB admin password", hidden=True)
-
-    def info(msg):
-        if not quiet:
-            print(msg)
 
     # create connection
     conn = connect(host=host, port=port, user=adm_user, passwd=adm_pass,
@@ -396,3 +396,8 @@ def interactive_mysql_setup(cfg, quiet=False):
     info("-- privileges added --")
 
     conn.close()
+
+
+# mariadb backend setup
+def interactive_mariadb_setup(cfg, quiet=False):
+    interactive_mysql_setup(cfg, quiet=quiet)
