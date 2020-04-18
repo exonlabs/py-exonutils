@@ -3,6 +3,7 @@
     :copyright: 2020, ExonLabs. All rights reserved.
     :license: BSD, see LICENSE for more details.
 """
+__all__ = []
 
 
 # return True if you are running inside virtualenv

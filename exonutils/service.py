@@ -10,6 +10,8 @@ import logging
 from .process import BaseProcess
 from .misc import shared_buffer
 
+__all__ = ['Service', 'ServiceTask']
+
 
 class Service(BaseProcess):
 

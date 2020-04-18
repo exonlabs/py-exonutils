@@ -7,6 +7,8 @@ import logging
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
 
+__all__ = ['BaseModel', 'DatabaseHandler']
+
 # supported DB backends
 DB_BACKENDS = ['sqlite', 'pgsql', 'mysql']
 

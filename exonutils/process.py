@@ -7,6 +7,8 @@ import sys
 import signal
 import logging
 
+__all__ = ['BaseProcess']
+
 
 class BaseProcess(object):
 

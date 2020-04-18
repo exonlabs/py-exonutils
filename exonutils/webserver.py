@@ -21,6 +21,8 @@ from jinja2 import BaseLoader
 from .process import BaseProcess
 from .misc import shared_buffer
 
+__all__ = ['WebServer', 'RESTWebServer', 'WebView']
+
 DEFAULT_HOST = '0.0.0.0'
 DEFAULT_PORT = 8000
 
