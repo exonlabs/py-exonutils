@@ -2,9 +2,9 @@
 
 
 clean:
+	@rm -rf build/
 	@find . -type d -name '__pycache__' -exec rm -rf {} +
 	@find . -type f -name '*.pyc' -exec rm -f {} +
-	@rm -rf build/
 
 clean-dist:
 	@rm -rf dist/
