@@ -3,12 +3,13 @@
     :copyright: 2020, ExonLabs. All rights reserved.
     :license: BSD, see LICENSE for more details.
 """
+import sys
+
 __all__ = []
 
 
 # return True if you are running inside virtualenv
 def is_virtualenv():
-    import sys
     return (getattr(sys, 'base_prefix', sys.prefix) != sys.prefix or
             hasattr(sys, 'real_prefix'))
 

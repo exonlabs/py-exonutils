@@ -3,6 +3,7 @@
     :copyright: 2020, ExonLabs. All rights reserved.
     :license: BSD, see LICENSE for more details.
 """
+from __future__ import print_function
 import logging
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import as_declarative, declared_attr

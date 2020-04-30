@@ -3,6 +3,12 @@
     :copyright: 2020, ExonLabs. All rights reserved.
     :license: BSD, see LICENSE for more details.
 """
+from __future__ import print_function
+import sys
+import re
+from builtins import input
+from getpass import getpass
+
 __all__ = ['ConsoleInput']
 
 
@@ -18,21 +24,20 @@ class ConsoleInput(object):
     @classmethod
     def _err(cls, msg):
         # print RED color error message
-        return "\033[31m -- %s\033[0m" % msg
+        return "\033[31;1m -- %s\033[0m" % msg
 
     @classmethod
     def _input(cls, msg, hidden=False):
-        from builtins import input
-        from getpass import getpass
-
-        fin = getpass if hidden else input
-        return fin(cls._msg(msg)).strip()
+        print(cls._msg(msg), end='')
+        sys.stdout.flush()
+        if hidden:
+            return getpass(prompt='').strip()
+        else:
+            return input().strip()
 
     @classmethod
     def get(cls, msg, default=None, trials=3, hidden=False, regex=None,
             validator_callback=None):
-        import re
-
         if default is None:
             msg = "%s:" % msg
         else:
@@ -73,8 +78,6 @@ class ConsoleInput(object):
 
     @classmethod
     def number(cls, msg, default=None, trials=3, vmin=None, vmax=None):
-        import re
-
         def validator(res):
             if not re.search('^[0-9-]+$', res):
                 print(cls._err("invalid number format"))
@@ -95,8 +98,6 @@ class ConsoleInput(object):
 
     @classmethod
     def decimal(cls, msg, default=None, trials=3, vmin=None, vmax=None):
-        import re
-
         def validator(res):
             if not re.search('^[0-9-]+(.[0-9]+)?$', res):
                 print(cls._err("invalid decimal format"))
