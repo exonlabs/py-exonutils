@@ -17,14 +17,14 @@ class User(BaseModel):
     __tablename__ = 'users'
     __table_args__ = {'mysql_engine': 'InnoDB'}
 
-    name = sa.Column(sa.String(32), nullable=False, unique=True)
-    email = sa.Column(sa.String(256), nullable=False, default='')
+    name = sa.Column(sa.Unicode(32), nullable=False, unique=True)
+    email = sa.Column(sa.Unicode(256), nullable=False, default=u'')
 
     @classmethod
     def initial_data(cls, dbs):
-        user = cls.find_one(dbs, name='foobar')
+        user = cls.find_one(dbs, name=u'foobar')
         if not user:
-            cls.create(dbs, name='foobar')
+            cls.create(dbs, name=u'foobar')
 
 
 if __name__ == '__main__':
@@ -57,7 +57,7 @@ if __name__ == '__main__':
         print("******************************")
         print("Checking Models")
         dbs = dbh.create_session()
-        res = User.find(dbs, name='foobar')
+        res = User.find(dbs, name=u'foobar')
         print(res)
         print("******************************")
 

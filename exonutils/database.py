@@ -18,7 +18,7 @@ DB_BACKENDS = ['sqlite', 'pgsql', 'mysql', 'mariadb']
 class BaseModel(object):
 
     guid = sa.Column(
-        sa.Unicode(32), primary_key=True, index=True, unique=True,
+        sa.String(32), primary_key=True, index=True, unique=True,
         autoincrement=False, nullable=False)
 
     @declared_attr
