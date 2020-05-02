@@ -6,6 +6,7 @@
 import threading
 import time
 import logging
+from traceback import format_exc
 
 from .process import BaseProcess
 from .misc import shared_buffer
@@ -69,7 +70,6 @@ class Service(BaseProcess):
                     t.start()
                     self._threads[T.__name__] = t
             except Exception:
-                from traceback import format_exc
                 self.log.error(format_exc().strip())
 
         # checking threads interval
@@ -136,7 +136,6 @@ class ServiceTask(threading.Thread):
             while not self.term_event.is_set():
                 self.execute()
         except Exception:
-            from traceback import format_exc
             self.log.error(format_exc().strip())
         except SystemExit:
             pass

@@ -7,16 +7,15 @@ import os
 import sys
 import uuid
 import logging
-try:
-    import gevent.monkey; gevent.monkey.patch_all() # noqa
-    from gunicorn.app.base import BaseApplication as GunicornBaseApplication
-    from gunicorn.glogging import Logger as GunicornLogger
-    from gunicorn import util as gunicorn_util
-except ImportError:
-    GunicornBaseApplication = None
+import gevent.monkey; gevent.monkey.patch_all() # noqa
+from gunicorn.app.base import BaseApplication as GunicornBaseApplication
+from gunicorn.glogging import Logger as GunicornLogger
+from gunicorn import util as gunicorn_util
 from flask import Flask, request, jsonify
 from flask.views import MethodView
 from jinja2 import BaseLoader
+from setproctitle import setproctitle
+from traceback import format_exc
 
 from .process import BaseProcess
 from .misc import shared_buffer
@@ -47,13 +46,6 @@ class WebServer(BaseProcess):
 
     def initialize(self):
         self.log.info("Initializing")
-
-        # check gunicorn
-        if not self.options.get('simple_engine', False):
-            if not GunicornBaseApplication:
-                self.log.fatal("please install 'gunicorn','gevent' " +
-                               "packages to use gunicorn engine")
-                sys.exit(1)
 
         # check websrv views list
         if not self.views:
@@ -124,7 +116,6 @@ class WebServer(BaseProcess):
             if hasattr(e, 'code'):
                 return self.response_handler((e.name, e.code))
             else:
-                from traceback import format_exc
                 self.log.error(format_exc().strip())
                 return self.response_handler(("Internal Server Error", 500))
 
@@ -190,12 +181,8 @@ class WebServer(BaseProcess):
                 })
                 if self.websrv.proctitle:
                     options['proc_name'] = self.websrv.proctitle.strip()
-                    try:
-                        from setproctitle import setproctitle
-                        gunicorn_util._setproctitle = lambda t: setproctitle(
-                            t[8:-1] if 'master' in t else ('%s+' % t[8:-1]))
-                    except ImportError:
-                        pass
+                    gunicorn_util._setproctitle = lambda t: setproctitle(
+                        t[8:-1] if 'master' in t else ('%s+' % t[8:-1]))
 
                 # set engine options
                 for key, value in options.items():

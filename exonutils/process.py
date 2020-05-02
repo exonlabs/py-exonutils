@@ -6,6 +6,8 @@
 import sys
 import signal
 import logging
+from setproctitle import setproctitle
+from traceback import format_exc
 
 __all__ = ['BaseProcess']
 
@@ -43,7 +45,6 @@ class BaseProcess(object):
             while True:
                 self.execute()
         except Exception:
-            from traceback import format_exc
             self.log.error(format_exc().strip())
             self.stop(exit_status=1)
         except KeyboardInterrupt:
@@ -55,12 +56,7 @@ class BaseProcess(object):
 
         # set process title
         if self.proctitle:
-            try:
-                from setproctitle import setproctitle
-                setproctitle(str(self.proctitle).strip())
-            except ImportError:
-                self.log.warn("ignoring process.proctitle value, " +
-                              "'setproctitle' package not installed")
+            setproctitle(str(self.proctitle).strip())
 
         # set process signal handler
         for s in self.signals:
@@ -74,7 +70,6 @@ class BaseProcess(object):
             self.terminate()
             sys.exit(exit_status)
         except Exception:
-            from traceback import format_exc
             self.log.error(format_exc().strip())
             sys.exit(1)
 

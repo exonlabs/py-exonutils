@@ -4,15 +4,12 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
-import sys
 from setuptools import setup
 
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
 __PKGNAME__ = 'exonutils'
 __VERSION__ = '1.4.1.dev'
-
-PY2 = bool(sys.version_info.major == 2)
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -31,10 +28,18 @@ setup(
     include_package_data=True,
     zip_safe=False,
     platforms='linux',
-    python_requires='>=%s' % ('2.7' if PY2 else '3.6'),
+    python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*',
     install_requires=[
-        'future>=0.18.2',
-    ] if PY2 else [],
+        'future>=0.18',
+        'setproctitle>=1.1',
+        'flask>=1.1',
+        'Jinja2>=2.11',
+        'gunicorn>=20.0;python_version>="3.6"',
+        'gunicorn>=19.10;python_version<"3.0"',  # py2 compatability
+        'gevent>=20.5',
+        'sqlalchemy>=1.3',
+        'alembic>=1.4',
+    ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',

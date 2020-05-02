@@ -5,8 +5,10 @@
 """
 from __future__ import print_function
 import logging
+import uuid
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
+from traceback import format_exc
 
 __all__ = ['BaseModel', 'DatabaseHandler']
 
@@ -38,7 +40,6 @@ class BaseModel(object):
 
     @classmethod
     def create(cls, dbs, _commit=True, **attrs):
-        import uuid
         obj = cls()
         obj.guid = uuid.uuid5(uuid.uuid1(), uuid.uuid4().hex).hex
         for attr, value in attrs.items():
@@ -183,17 +184,13 @@ class DatabaseHandler(object):
 
 
 def init_database(dbh, models):
-    try:
-        from alembic.operations import Operations
-        from alembic.migration import MigrationContext
-        # adjust alembic logging
-        logger = logging.getLogger('alembic')
-        logger.name = 'dbm'
-        logger.setLevel(logging.DEBUG if dbh.debug else logging.ERROR)
-    except ImportError:
-        MigrationContext = None  # noqa
-        print("\n*** Warning: please install 'alembic' package " +
-              "to enable db migrations ***\n")
+    from alembic.operations import Operations
+    from alembic.migration import MigrationContext
+
+    # adjust alembic logging
+    logger = logging.getLogger('alembic')
+    logger.name = 'dbm'
+    logger.setLevel(logging.DEBUG if dbh.debug else logging.ERROR)
 
     err = ''
     try:
@@ -205,12 +202,11 @@ def init_database(dbh, models):
         BaseModel.metadata.create_all(dbh.engine)
 
         # execute migrations
-        if MigrationContext:
-            conn = dbh.engine.connect()
-            op = Operations(MigrationContext.configure(conn))
-            for Model in models:
-                Model.migrate(op, dbs)
-                dbs.commit()
+        conn = dbh.engine.connect()
+        op = Operations(MigrationContext.configure(conn))
+        for Model in models:
+            Model.migrate(op, dbs)
+            dbs.commit()
 
         # load initial models data
         for Model in models:
@@ -218,7 +214,6 @@ def init_database(dbh, models):
             dbs.commit()
 
     except Exception:
-        from traceback import format_exc
         err = format_exc().strip()
     finally:
         dbh.close()
