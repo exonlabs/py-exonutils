@@ -8,6 +8,7 @@ import sys
 import uuid
 import logging
 import gevent.monkey; gevent.monkey.patch_all() # noqa
+import gevent.hub; gevent.hub.Hub.exception_stream = False # noqa
 from gunicorn.app.base import BaseApplication as GunicornBaseApplication
 from gunicorn.glogging import Logger as GunicornLogger
 from gunicorn import util as gunicorn_util
