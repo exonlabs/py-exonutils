@@ -14,35 +14,31 @@ def is_virtualenv():
             hasattr(sys, 'real_prefix'))
 
 
-# returns list of python packages inside certain target location
-def pypkgs(target, package):
+# returns list of python packages inside certain target package
+def pypkgs(target):
     from importlib import import_module
     from pkgutil import iter_modules
     try:
-        if target == '.':
-            pkg_parts = package.split('.')
-            target = '.%s' % pkg_parts[-1]
-            package = '.'.join(pkg_parts[:-1])
-        pkg_path = import_module(target, package=package).__path__
-        return [name for imp, name, ispkg in iter_modules(pkg_path)
-                if ispkg]
-    except ImportError:
+        pkg = import_module('.', package=target)
+        return ['%s.%s' % (target, n)
+                for i, n, ispkg in iter_modules(pkg.__path__) if ispkg]
+    except:
         return []
 
 
-# returns list of python modules inside certain target location
-def pymods(target, package):
+# returns list of python modules inside certain target package
+def pymods(target):
     from importlib import import_module
     from pkgutil import iter_modules
     try:
-        if target == '.':
-            pkg_parts = package.split('.')
-            target = '.%s' % pkg_parts[-1]
-            package = '.'.join(pkg_parts[:-1])
-        pkg_path = import_module(target, package=package).__path__
-        return [name for imp, name, ispkg in iter_modules(pkg_path)
-                if not ispkg]
-    except ImportError:
+        pkg = import_module('.', package=target)
+        res = [pkg]
+        mods = ['%s.%s' % (target, n)
+                for i, n, ispkg in iter_modules(pkg.__path__) if not ispkg]
+        for m in mods:
+            res.append(import_module(m, package=target))
+        return res
+    except:
         return []
 
 
