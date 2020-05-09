@@ -105,7 +105,7 @@ class BaseModel(object):
 class DatabaseHandler(object):
 
     def __init__(self, backend, database, host=None, port=None,
-                 username=None, password=None, debug=False):
+                 username=None, password=None, debug=0):
         if backend not in DB_BACKENDS:
             raise RuntimeError("invalid backend: %s" % backend)
         if not database:
@@ -164,7 +164,12 @@ class DatabaseHandler(object):
         # adjust sqlalchemy logging
         logger = logging.getLogger('sqlalchemy')
         logger.name = 'db'
-        logger.setLevel(logging.DEBUG if self.debug else logging.ERROR)
+        if self.debug >= 5:
+            logger.setLevel(logging.DEBUG)
+        elif self.debug >= 4:
+            logger.setLevel(logging.INFO)
+        else:
+            logger.setLevel(logging.ERROR)
 
         # initialize engine
         if not self.engine:
@@ -190,7 +195,12 @@ def init_database(dbh, models):
     # adjust alembic logging
     logger = logging.getLogger('alembic')
     logger.name = 'dbm'
-    logger.setLevel(logging.DEBUG if dbh.debug else logging.ERROR)
+    if dbh.debug >= 5:
+        logger.setLevel(logging.DEBUG)
+    elif dbh.debug >= 4:
+        logger.setLevel(logging.INFO)
+    else:
+        logger.setLevel(logging.ERROR)
 
     err = ''
     try:
