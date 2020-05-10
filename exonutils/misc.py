@@ -55,11 +55,11 @@ def shared_buffer():
         def list(self):
             return self._data.keys()
 
-        def get(self, key):
+        def get(self, key, default=None):
             if key in self._data:
                 with self._lock[key]:
                     return self._data[key]
-            return None
+            return default
 
         def set(self, key, value):
             if key not in self._data:
