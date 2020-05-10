@@ -93,14 +93,7 @@ class WebServer(BaseProcess):
         if not app.config.get('MAX_CONTENT_LENGTH', None):
             app.config['MAX_CONTENT_LENGTH'] = 10485760  # 10 MiB
 
-        # find referance debug mode
-        if self.log.level >= logging.DEBUG:
-            debug = bool(self.log.level <= logging.DEBUG)
-        else:
-            debug = bool(logging.getLogger().level <= logging.DEBUG)
-
         # force specific app options
-        app.config['APP_DEBUG'] = debug
         app.config['TEMPLATES_AUTO_RELOAD'] = True
         app.config['TRAP_HTTP_EXCEPTIONS'] = True
         app.config['TRAP_BAD_REQUEST_ERRORS'] = True
@@ -138,12 +131,12 @@ class WebServer(BaseProcess):
 
             # create werkzeug app
             options = self.options.get('engine', {})
+            debug = bool(self.log.level <= logging.DEBUG)
             app = self.create_app()
             app.run(
                 host=options.get('host', '') or DEFAULT_HOST,
                 port=options.get('port', 0) or DEFAULT_PORT,
-                debug=app.config['APP_DEBUG'],
-                use_reloader=app.config['APP_DEBUG'])
+                debug=debug, use_reloader=debug)
 
             return None
 

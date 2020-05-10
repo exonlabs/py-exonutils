@@ -54,6 +54,7 @@ if __name__ == '__main__':
             logging.getLogger().setLevel(logging.DEBUG)
 
         s = Service('SampleService')
+        s.log.setLevel(logging.getLogger().level)
         s.tasks = [Task1, Task2]
         s.start()
 

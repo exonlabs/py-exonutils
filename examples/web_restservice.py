@@ -73,6 +73,7 @@ if __name__ == '__main__':
 
         cls = XMLRESTWebServer if args.xml else RESTWebServer
         h = cls('SampleRESTSRV', options=cfg)
+        h.log.setLevel(logging.getLogger().level)
         h.views = [Res1, Res2]
         h.start()
 

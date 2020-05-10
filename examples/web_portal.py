@@ -61,6 +61,7 @@ if __name__ == '__main__':
             cfg['engine']['workers'] = args.workers
 
         p = WebServer('SamplePortal', options=cfg)
+        p.log.setLevel(logging.getLogger().level)
         p.views = [IndexView, HomeView]
         p.start()
 
