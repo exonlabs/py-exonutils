@@ -18,28 +18,24 @@ def is_virtualenv():
 def pypkgs(target):
     from importlib import import_module
     from pkgutil import iter_modules
-    try:
-        pkg = import_module('.', package=target)
-        return ['%s.%s' % (target, n)
-                for i, n, ispkg in iter_modules(pkg.__path__) if ispkg]
-    except:
-        return []
+
+    pkg = import_module('.', package=target)
+    return ['%s.%s' % (target, n)
+            for i, n, ispkg in iter_modules(pkg.__path__) if ispkg]
 
 
 # returns list of python modules inside certain target package
 def pymods(target):
     from importlib import import_module
     from pkgutil import iter_modules
-    try:
-        pkg = import_module('.', package=target)
-        res = [pkg]
-        mods = ['%s.%s' % (target, n)
-                for i, n, ispkg in iter_modules(pkg.__path__) if not ispkg]
-        for m in mods:
-            res.append(import_module(m, package=target))
-        return res
-    except:
-        return []
+
+    pkg = import_module('.', package=target)
+    res = [pkg]
+    mods = ['%s.%s' % (target, n)
+            for i, n, ispkg in iter_modules(pkg.__path__) if not ispkg]
+    for m in mods:
+        res.append(import_module(m, package=target))
+    return res
 
 
 # create shared data buffer with access locking
