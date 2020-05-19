@@ -243,6 +243,9 @@ class WebView(MethodView):
     def after_request(self, response):
         return response
 
+    def run_request(self, method, *args, **kw):
+        return method(*args, **kw)
+
     def dispatch_request(self, *args, **kw):
         meth = getattr(self, request.method.lower(), None)
 
@@ -258,7 +261,7 @@ class WebView(MethodView):
         if response is not None:
             return self.response_handler(response)
 
-        response = meth(*args, **kw)
+        response = self.run_request(meth, *args, **kw)
 
         # exec after request handlers
         response = self._after_request(response)
