@@ -168,6 +168,7 @@ class WebServer(BaseProcess):
                     'bind': '%s:%s' % (
                         options.get('host', '') or DEFAULT_HOST,
                         options.get('port', 0) or DEFAULT_PORT),
+                    'reuse_port': True,
                     'workers': options.get('workers', 0) or os.cpu_count(),
                     'worker_class': 'gevent',
                     'logger_class': _Logger,
@@ -175,9 +176,11 @@ class WebServer(BaseProcess):
                     'access_log_format':
                         '%(h)s - %(u)s %(t)s "%(r)s" %(s)s ' +
                         '%(b)s "%(f)s" "%(a)s" %(D)s',
-                    'max_requests': options.get('max_requests', 0) or 200,
+                    'timeout': options.get('timeout', 0),
+                    'graceful_timeout': options.get('graceful_timeout', 0),
+                    'max_requests': options.get('max_requests', 0),
                     'max_requests_jitter':
-                        options.get('max_requests_jitter', 0) or 50,
+                        options.get('max_requests_jitter', 0),
                     'on_exit': self.on_exit,
                 })
                 if self.websrv.proctitle:
