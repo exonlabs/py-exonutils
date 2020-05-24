@@ -19,7 +19,7 @@ from setproctitle import setproctitle
 from traceback import format_exc
 
 from .process import BaseProcess
-from .misc import shared_buffer
+from .misc import SharedBuffer
 
 __all__ = ['WebServer', 'RESTWebServer', 'WebView']
 
@@ -29,13 +29,13 @@ DEFAULT_PORT = 8000
 
 class WebServer(BaseProcess):
 
-    def __init__(self, name, options={}, logger=None, debug=0):
+    def __init__(self, name, options={}, logger=None, tmpdir=None, debug=0):
         super(WebServer, self).__init__(name, logger=logger, debug=debug)
 
         # websrv views list
         self.views = []
         # shared global buffer
-        self.shared_buffer = shared_buffer()
+        self.shared_buffer = SharedBuffer(self.name, tmpdir=tmpdir)
 
         # websrv attrs
         self.options = options
@@ -70,6 +70,9 @@ class WebServer(BaseProcess):
         self.rlog.propagate = False
 
     def terminate(self):
+        # clean shared data
+        self.shared_buffer.close()
+
         if self.options.get('simple_engine', False):
             self.log.info("Shutting down")
 
@@ -175,6 +178,7 @@ class WebServer(BaseProcess):
                     'max_requests': options.get('max_requests', 0) or 200,
                     'max_requests_jitter':
                         options.get('max_requests_jitter', 0) or 50,
+                    'on_exit': self.on_exit,
                 })
                 if self.websrv.proctitle:
                     options['proc_name'] = self.websrv.proctitle.strip()
@@ -188,6 +192,9 @@ class WebServer(BaseProcess):
 
             def load(self):
                 return self.websrv.create_app()
+
+            def on_exit(self, server):
+                self.websrv.terminate()
 
         # create gunicorn app
         app = _App(self)

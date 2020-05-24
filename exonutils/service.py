@@ -9,7 +9,7 @@ import logging
 from traceback import format_exc
 
 from .process import BaseProcess
-from .misc import shared_buffer
+from .misc import SharedBuffer
 
 __all__ = ['Service', 'ServiceTask']
 
@@ -19,13 +19,13 @@ class Service(BaseProcess):
     # interval in sec to check for tasks
     tasks_check_interval = 10
 
-    def __init__(self, name, logger=None, debug=0):
+    def __init__(self, name, logger=None, tmpdir=None, debug=0):
         super(Service, self).__init__(name, logger=logger, debug=debug)
 
         # service tasks list
         self.tasks = []
         # shared global buffer
-        self.shared_buffer = shared_buffer()
+        self.shared_buffer = SharedBuffer(self.name, tmpdir=tmpdir)
 
         # runtime tasks threads buffer
         self._threads = dict()
@@ -93,6 +93,9 @@ class Service(BaseProcess):
 
         # clean runtime tasks buffer
         self._threads = dict()
+
+        # clean shared data
+        self.shared_buffer.close()
 
         if self.reload_event.is_set():
             self.reload_event.clear()

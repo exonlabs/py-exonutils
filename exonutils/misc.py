@@ -4,6 +4,10 @@
     :license: BSD, see LICENSE for more details.
 """
 import sys
+import os
+import pickle
+from shutil import rmtree
+from tempfile import gettempdir
 
 __all__ = []
 
@@ -38,38 +42,53 @@ def pymods(target):
     return res
 
 
-# create shared data buffer with access locking
-def shared_buffer():
-    import threading
+# create shared data buffer
+class SharedBuffer(object):
 
-    class SharedBuffer(object):
+    def __init__(self, name, tmpdir=None):
+        if not tmpdir:
+            tmpdir = gettempdir()
+        self._dir = os.path.join(tmpdir, 'shm', name)
+        if not os.path.exists(self._dir):
+            os.makedirs(self._dir)
 
-        def __init__(self):
-            self._data = {}
-            self._lock = {}
+    def __del__(self):
+        self.close()
 
-        def list(self):
-            return self._data.keys()
+    def __enter__(self):
+        return self
 
-        def get(self, key, default=None):
-            if key in self._data:
-                with self._lock[key]:
-                    return self._data[key]
-            return default
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
-        def set(self, key, value):
-            if key not in self._data:
-                self._lock[key] = threading.Lock()
-            with self._lock[key]:
-                self._data[key] = value
+    def close(self):
+        if os.path.exists(self._dir):
+            rmtree(self._dir, ignore_errors=True)
 
-        def delete(self, key):
-            if key in self._data:
-                del(self._data[key])
-                del(self._lock[key])
+    def keys(self):
+        return list(os.walk(self._dir))[0][-1]
 
-        def reset(self):
-            self._data = {}
-            self._lock = {}
+    def items(self):
+        return {k: self.get(k) for k in self.keys()}
 
-    return SharedBuffer()
+    def get(self, key, default=None):
+        fpath = os.path.join(self._dir, key)
+        if os.path.exists(fpath):
+            with open(fpath, 'rb') as f:
+                return pickle.load(f)
+        return default
+
+    def set(self, key, value):
+        fpath = os.path.join(self._dir, key)
+        with open(fpath, 'wb') as f:
+            pickle.dump(value, f)
+
+    def delete(self, key):
+        fpath = os.path.join(self._dir, key)
+        if os.path.exists(fpath):
+            os.unlink(fpath)
+
+    def reset(self):
+        for fname in self.keys():
+            fpath = os.path.join(self._dir, fname)
+            os.unlink(fpath)
