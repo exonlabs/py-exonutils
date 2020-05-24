@@ -29,8 +29,8 @@ DEFAULT_PORT = 8000
 
 class WebServer(BaseProcess):
 
-    def __init__(self, name, options={}, logger=None):
-        super(WebServer, self).__init__(name, logger=logger)
+    def __init__(self, name, options={}, logger=None, debug=0):
+        super(WebServer, self).__init__(name, logger=logger, debug=debug)
 
         # websrv views list
         self.views = []
@@ -59,6 +59,9 @@ class WebServer(BaseProcess):
                        % ','.join([V.__name__ for V in self.views]))
 
         # adjust request logger handlers
+        if self.debug >= 2:
+            for hnd in self.rlog.handlers:
+                self.rlog.removeHandler(hnd)
         if not self.rlog.handlers:
             self.rlog.addHandler(logging.StreamHandler(sys.stdout))
         for hnd in self.rlog.handlers:
@@ -131,12 +134,12 @@ class WebServer(BaseProcess):
 
             # create werkzeug app
             options = self.options.get('engine', {})
-            debug = bool(self.log.level <= logging.DEBUG)
             app = self.create_app()
             app.run(
                 host=options.get('host', '') or DEFAULT_HOST,
                 port=options.get('port', 0) or DEFAULT_PORT,
-                debug=debug, use_reloader=debug)
+                debug=bool(self.debug >= 1),
+                use_reloader=bool(self.debug >= 3))
 
             return None
 

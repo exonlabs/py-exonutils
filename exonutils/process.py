@@ -18,11 +18,13 @@ class BaseProcess(object):
     signals = [signal.SIGINT, signal.SIGQUIT, signal.SIGTERM,
                signal.SIGHUP, signal.SIGUSR1, signal.SIGUSR2]
 
-    def __init__(self, name, logger=None):
+    def __init__(self, name, logger=None, debug=0):
         # process name
         self.name = name
         # process title to show in process table
         self.proctitle = self.name
+        # runtime debug mode
+        self.debug = debug
 
         # process logger
         if logger and isinstance(logger, logging.Logger):

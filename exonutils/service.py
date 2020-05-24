@@ -19,8 +19,8 @@ class Service(BaseProcess):
     # interval in sec to check for tasks
     tasks_check_interval = 10
 
-    def __init__(self, name, logger=None):
-        super(Service, self).__init__(name, logger=logger)
+    def __init__(self, name, logger=None, debug=0):
+        super(Service, self).__init__(name, logger=logger, debug=debug)
 
         # service tasks list
         self.tasks = []

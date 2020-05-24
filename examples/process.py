@@ -51,7 +51,6 @@ if __name__ == '__main__':
             logging.getLogger().setLevel(logging.DEBUG)
 
         p = SampleProcess('SampleProcess')
-        p.log.setLevel(logging.getLogger().level)
         p.start()
 
     except Exception:

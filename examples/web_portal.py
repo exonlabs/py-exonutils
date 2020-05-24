@@ -44,15 +44,15 @@ class HomeView(WebView):
 if __name__ == '__main__':
     try:
         pr = ArgumentParser(prog=None)
-        pr.add_argument('-x', dest='debug', action='store_true',
-                        help='enable debug mode')
+        pr.add_argument('-x', dest='debug', action='count', default=0,
+                        help='set debug modes')
         pr.add_argument('--simple', action='store_true',
                         help='use simple web engine')
         pr.add_argument('--workers', type=int, metavar='N',
                         help='number of workers handling requests')
         args = pr.parse_args()
 
-        if args.debug:
+        if args.debug > 0:
             logging.getLogger().setLevel(logging.DEBUG)
 
         if args.simple:
@@ -60,8 +60,7 @@ if __name__ == '__main__':
         elif args.workers:
             cfg['engine']['workers'] = args.workers
 
-        p = WebServer('SamplePortal', options=cfg)
-        p.log.setLevel(logging.getLogger().level)
+        p = WebServer('SamplePortal', options=cfg, debug=args.debug)
         p.views = [IndexView, HomeView]
         p.start()
 
