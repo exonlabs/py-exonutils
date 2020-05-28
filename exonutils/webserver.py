@@ -174,8 +174,8 @@ class WebServer(BaseProcess):
                     'logger_class': _Logger,
                     'accesslog': '-',
                     'access_log_format':
-                        '%(h)s - %(u)s %(t)s "%(r)s" %(s)s ' +
-                        '%(b)s "%(f)s" "%(a)s" %(D)s',
+                        '%({x-forwarded-for}i)s %(u)s %(t)s "%(r)s" ' +
+                        '%(s)s %(b)s "%(f)s" "%(a)s" %(D)s',
                     'timeout': options.get('timeout', 0),
                     'graceful_timeout': options.get('graceful_timeout', 0),
                     'max_requests': options.get('max_requests', 0),
