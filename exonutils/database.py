@@ -299,8 +299,10 @@ def interactive_pgsql_setup(cfg, quiet=False):
         raise RuntimeError("invalid empty database password")
 
     # get superuser access for database setup
-    adm_user = Input.get("Enter DB admin user", default='postgres')
-    adm_pass = Input.get("Enter DB admin password", hidden=True)
+    adm_user = Input.get(
+        "Enter DB server admin user", default='postgres')
+    adm_pass = Input.get(
+        "Enter DB server admin password", hidden=True, default='')
 
     def info(msg):
         if not quiet:
@@ -317,6 +319,9 @@ def interactive_pgsql_setup(cfg, quiet=False):
                 % (username))
     if not cur.fetchall():
         cur.execute("CREATE ROLE %s LOGIN PASSWORD '%s';"
+                    % (username, password))
+    else:
+        cur.execute("ALTER ROLE %s WITH PASSWORD '%s';"
                     % (username, password))
     cur.close()
     info("-- role created --")
@@ -371,8 +376,10 @@ def interactive_mysql_setup(cfg, quiet=False):
         raise RuntimeError("invalid empty database password")
 
     # get superuser access for database setup
-    adm_user = Input.get("Enter DB admin user", default='root')
-    adm_pass = Input.get("Enter DB admin password", hidden=True)
+    adm_user = Input.get(
+        "Enter DB server admin user", default='root')
+    adm_pass = Input.get(
+        "Enter DB server admin password", hidden=True, default='')
 
     # create connection
     conn = connect(host=host, port=port, user=adm_user, passwd=adm_pass,
@@ -394,9 +401,11 @@ def interactive_mysql_setup(cfg, quiet=False):
     if not cur.fetchall():
         cur.execute("CREATE USER '%s'@'%%' IDENTIFIED BY '%s';"
                     % (username, password))
-        cur.execute("GRANT ALL ON %s.* TO %s@'%%';"
-                    % (database, username))
-        cur.execute("FLUSH PRIVILEGES;")
+    else:
+        cur.execute("ALTER USER '%s'@'%%' IDENTIFIED BY '%s';"
+                    % (username, password))
+    cur.execute("GRANT ALL ON %s.* TO %s@'%%';" % (database, username))
+    cur.execute("FLUSH PRIVILEGES;")
     cur.close()
     info("-- user created --")
     info("-- privileges added --")
