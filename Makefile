@@ -1,4 +1,4 @@
-.PHONY: clean clean-dist clean-dev clean-all setup-dev build
+.PHONY: clean clean-dist clean-dev clean-all setup-dev release
 
 
 clean:
@@ -15,7 +15,7 @@ clean-dev: clean
 clean-all: clean-dev clean-dist
 
 setup-dev: clean-dev
-	pip install -e ./
+	@bash scripts/setup_dev.sh
 
-build: clean
-	python setup.py sdist bdist_wheel clean --all
+release: clean
+	@bash scripts/release.sh $(REL)

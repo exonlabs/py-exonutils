@@ -4,27 +4,28 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
-from setuptools import setup
+import re
+from setuptools import setup, find_packages
+
+pkg_name = 'exonutils'
 
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
-
-__PKGNAME__ = 'exonutils'
-__VERSION__ = '1.7.1.dev'
-
-with open("README.md", "r") as fh:
-    long_description = fh.read()
+with open(os.path.join(pkg_name, '__init__.py'), 'rt') as f:
+    version = re.search(r'__version__ = "(.*?)"', f.read()).group(1)
+with open('README.md', 'rt') as f:
+    long_description = f.read()
 
 
 setup(
-    name=__PKGNAME__,
-    version=__VERSION__,
-    license='BSD',
+    name=pkg_name,
+    version=version,
     url='https://bitbucket.org/exonlabs/exonutils',
-    author='exonlabs',
+    author='ExonLabs',
+    license='BSD',
     description='Common and base utilities for applications.',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=[__PKGNAME__],
+    packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
     platforms='linux',
