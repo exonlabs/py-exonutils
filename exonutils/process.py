@@ -6,31 +6,24 @@
 import sys
 import signal
 import logging
-from setproctitle import setproctitle
 from traceback import format_exc
 
 __all__ = ['BaseProcess']
+
+_log = logging.getLogger('%s.core' % __package__)
 
 
 class BaseProcess(object):
 
     # signals to be handled by process
-    signals = [signal.SIGINT, signal.SIGQUIT, signal.SIGTERM,
-               signal.SIGHUP, signal.SIGUSR1, signal.SIGUSR2]
+    signals = ['SIGINT', 'SIGTERM', 'SIGQUIT',
+               'SIGHUP', 'SIGUSR1', 'SIGUSR2']
 
-    def __init__(self, name, logger=None, debug=0):
+    def __init__(self, name):
         # process name
         self.name = name
         # process title to show in process table
         self.proctitle = self.name
-        # runtime debug mode
-        self.debug = debug
-
-        # process logger
-        if logger and isinstance(logger, logging.Logger):
-            self.log = logger
-        else:
-            self.log = logging.getLogger(self.name)
 
     def initialize(self):
         pass
@@ -47,7 +40,7 @@ class BaseProcess(object):
             while True:
                 self.execute()
         except Exception:
-            self.log.error(format_exc().strip())
+            _log.error(format_exc().strip())
             self.stop(exit_status=1)
         except KeyboardInterrupt:
             self.stop()
@@ -58,11 +51,18 @@ class BaseProcess(object):
 
         # set process title
         if self.proctitle:
-            setproctitle(str(self.proctitle).strip())
+            try:
+                from setproctitle import setproctitle
+                setproctitle(str(self.proctitle).strip())
+            except ImportError:
+                _log.debug("ignoring setproctitle - package not installed")
 
         # set process signal handler
         for s in self.signals:
-            signal.signal(s, self.signal)
+            if hasattr(signal, s):
+                signal.signal(getattr(signal, s), self.signal)
+            else:
+                _log.debug("invalid or not supported signal %s" % s)
 
         # run process
         self.run()
@@ -72,7 +72,7 @@ class BaseProcess(object):
             self.terminate()
             sys.exit(exit_status)
         except Exception:
-            self.log.error(format_exc().strip())
+            _log.error(format_exc().strip())
             sys.exit(1)
 
     # process signal handler dispatcher
@@ -83,12 +83,12 @@ class BaseProcess(object):
             res = [k for k, v in signal.__dict__.iteritems() if v == sig]
             signame = '' if not res else res[0]
 
-        self.log.debug("received signal: %s" % signame)
         handler = getattr(self, "handle_%s" % signame.lower(), None)
         if handler:
+            _log.debug("execute handler for signal: %s" % signame)
             handler()
         else:
-            self.log.debug("no signal handler defined")
+            _log.debug("received signal: %s - (no handler)" % signame)
 
     def handle_sigint(self):
         self.stop()

@@ -9,35 +9,36 @@ from exonutils.process import BaseProcess
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
-    format='%(asctime)s [%(name)s] %(levelname)s %(message)s')
+    format='%(asctime)s %(levelname)s %(message)s')
+log = logging.getLogger()
 
 
 class SampleProcess(BaseProcess):
 
     def initialize(self):
-        self.log.info("Initializing")
+        log.info("Initializing")
         self.counter = 0
 
     def execute(self):
-        self.log.debug("Running: %s ..." % self.counter)
+        log.debug("Running: %s ..." % self.counter)
         self.counter += 1
         sleep(2)
 
     def terminate(self):
-        self.log.info("Shutting down")
+        log.info("Shutting down")
 
     def handle_sigusr1(self):
         rootlogger = logging.getLogger()
         if rootlogger.level != logging.DEBUG:
             rootlogger.setLevel(logging.DEBUG)
-            self.log.info("debugging ON")
+            log.info("debugging ON")
         else:
             rootlogger.setLevel(logging.INFO)
-            self.log.info("debugging OFF")
+            log.info("debugging OFF")
 
     def handle_sigusr2(self):
         self.counter = 0
-        self.log.info("Counter reset")
+        log.info("Counter reset")
 
 
 if __name__ == '__main__':
@@ -54,5 +55,5 @@ if __name__ == '__main__':
         p.start()
 
     except Exception:
-        print(format_exc())
+        log.fatal(format_exc())
         sys.exit(1)

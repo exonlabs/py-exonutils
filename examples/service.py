@@ -4,43 +4,44 @@ import logging
 from argparse import ArgumentParser
 from traceback import format_exc
 
-from exonutils.service import Service, ServiceTask
+from exonutils.service import BaseService, BaseServiceTask
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
-    format='%(asctime)s [%(name)s] %(levelname)s %(message)s')
+    format='%(asctime)s %(levelname)s %(message)s')
+log = logging.getLogger()
+
+counter = 0
 
 
-class Task1(ServiceTask):
+class Task1(BaseServiceTask):
 
     def initialize(self):
-        self.log.info("initializing task")
+        log.info("initializing task")
 
     def execute(self):
-        self.log.debug("running ...")
-        k = self.shared_buffer.get('k')
-        if k is not None:
-            self.shared_buffer.set('k', k + 1)
-        else:
-            self.shared_buffer.set('k', 0)
+        global counter
+        log.debug("running ...")
+        counter += 1
         self.sleep(5)
 
     def terminate(self):
-        self.log.info("terminating task")
+        log.info("terminating task")
 
 
-class Task2(ServiceTask):
+class Task2(BaseServiceTask):
 
     def initialize(self):
-        self.log.info("initializing task")
+        log.info("initializing task")
 
     def execute(self):
-        self.log.debug("running ...")
-        self.log.info("k = %s" % self.shared_buffer.get('k'))
+        global counter
+        log.debug("running ...")
+        log.info("count = %s" % counter)
         self.sleep(3)
 
     def terminate(self):
-        self.log.info("terminating task")
+        log.info("terminating task")
 
 
 if __name__ == '__main__':
@@ -53,10 +54,10 @@ if __name__ == '__main__':
         if args.debug:
             logging.getLogger().setLevel(logging.DEBUG)
 
-        s = Service('SampleService')
+        s = BaseService('SampleService')
         s.tasks = [Task1, Task2]
         s.start()
 
     except Exception:
-        print(format_exc())
+        log.fatal(format_exc())
         sys.exit(1)
