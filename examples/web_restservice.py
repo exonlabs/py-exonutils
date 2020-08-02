@@ -5,28 +5,25 @@ from flask import request
 from argparse import ArgumentParser
 from traceback import format_exc
 
-from exonutils.webserver import RESTWebServer, WebView
+from exonutils.webapp import BaseRESTWebApp, BaseWebView
+
+try:
+    import colorama
+    colorama.init()
+except ImportError:
+    pass
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
-    format='%(asctime)s [%(name)s] %(levelname)s %(message)s')
+    format='%(asctime)s %(levelname)s %(message)s')
+log = logging.getLogger()
 
-cfg = {
-    'app': {
-        'secret_key': "0123456789ABCDEF",
-        'max_content_length': 10485760,
-    },
-    'engine': {
-        'host': '0.0.0.0',
-        'port': 8000,
-        'workers': 2,
-        'max_requests': 200,
-        'max_requests_jitter': 50,
-    },
-}
+rlog = logging.getLogger('werkzeug')
+rlog.setLevel(logging.INFO)
+rlog.propagate = False
 
 
-class XMLRESTWebServer(RESTWebServer):
+class XMLRESTWebServer(BaseRESTWebApp):
 
     def response_parser(self, data, status):
         res = '<?xml version="1.0" encoding="UTF-8"?>\n<data>\n'
@@ -36,21 +33,21 @@ class XMLRESTWebServer(RESTWebServer):
         return res, status, {'Content-Type': 'text/xml'}
 
 
-class Res1(WebView):
+class Res1(BaseWebView):
     routes = [('/res1', 'res1'),
               ('/res1/<guid>', 'res1_1')]
 
     def get(self, **kw):
-        self.log.debug(self.__class__.__name__)
+        log.debug(self.__class__.__name__)
         return kw
 
 
-class Res2(WebView):
+class Res2(BaseWebView):
     routes = [('/res2', 'res2'),
               ('/res2/<guid>', 'res2_1')]
 
     def get(self, **kw):
-        self.log.debug(self.__class__.__name__)
+        log.debug(self.__class__.__name__)
         return {'result': self.__class__.__name__}
 
     def post(self, **kw):
@@ -66,10 +63,6 @@ if __name__ == '__main__':
         pr = ArgumentParser(prog=None)
         pr.add_argument('-x', dest='debug', action='count', default=0,
                         help='set debug modes')
-        pr.add_argument('--simple', action='store_true',
-                        help='use simple web engine')
-        pr.add_argument('--workers', type=int, metavar='N',
-                        help='number of workers handling requests')
         pr.add_argument('--xml', action='store_true',
                         help='use XML rest interface')
         args = pr.parse_args()
@@ -77,16 +70,20 @@ if __name__ == '__main__':
         if args.debug > 0:
             logging.getLogger().setLevel(logging.DEBUG)
 
-        if args.simple:
-            cfg['simple_engine'] = True
-        elif args.workers:
-            cfg['engine']['workers'] = args.workers
-
-        cls = XMLRESTWebServer if args.xml else RESTWebServer
-        h = cls('SampleRESTSRV', options=cfg, debug=args.debug)
-        h.views = [Res1, Res2]
-        h.start()
+        cfg = {
+            'secret_key': "0123456789ABCDEF",
+            'max_content_length': 10485760,
+            'templates_auto_reload': bool(args.debug > 0),
+        }
+        cls = XMLRESTWebServer if args.xml else BaseRESTWebApp
+        webapp = cls('SampleRESTSRV', options=cfg)
+        webapp.views = [Res1, Res2]
+        webapp.create_app().run(
+            host='0.0.0.0',
+            port='8000',
+            debug=bool(args.debug >= 1),
+            use_reloader=bool(args.debug >= 3))
 
     except Exception:
-        print(format_exc())
+        log.fatal(format_exc())
         sys.exit(1)

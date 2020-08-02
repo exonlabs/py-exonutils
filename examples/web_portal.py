@@ -4,40 +4,37 @@ import logging
 from argparse import ArgumentParser
 from traceback import format_exc
 
-from exonutils.webserver import WebServer, WebView
+from exonutils.webapp import BaseWebApp, BaseWebView
+
+try:
+    import colorama
+    colorama.init()
+except ImportError:
+    pass
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
-    format='%(asctime)s [%(name)s] %(levelname)s %(message)s')
+    format='%(asctime)s %(levelname)s %(message)s')
+log = logging.getLogger()
 
-cfg = {
-    'app': {
-        'secret_key': "0123456789ABCDEF",
-        'max_content_length': 10485760,
-    },
-    'engine': {
-        'host': '0.0.0.0',
-        'port': 8000,
-        'workers': 2,
-        'max_requests': 200,
-        'max_requests_jitter': 50,
-    },
-}
+rlog = logging.getLogger('werkzeug')
+rlog.setLevel(logging.INFO)
+rlog.propagate = False
 
 
-class IndexView(WebView):
+class IndexView(BaseWebView):
     routes = [('/', 'index')]
 
     def get(self, **kw):
-        self.log.debug(self.__class__.__name__)
+        log.debug(self.__class__.__name__)
         return self.__class__.__name__
 
 
-class HomeView(WebView):
+class HomeView(BaseWebView):
     routes = [('/home', 'home')]
 
     def get(self, **kw):
-        self.log.debug(self.__class__.__name__)
+        log.debug(self.__class__.__name__)
         return self.__class__.__name__
 
 
@@ -46,24 +43,24 @@ if __name__ == '__main__':
         pr = ArgumentParser(prog=None)
         pr.add_argument('-x', dest='debug', action='count', default=0,
                         help='set debug modes')
-        pr.add_argument('--simple', action='store_true',
-                        help='use simple web engine')
-        pr.add_argument('--workers', type=int, metavar='N',
-                        help='number of workers handling requests')
         args = pr.parse_args()
 
         if args.debug > 0:
             logging.getLogger().setLevel(logging.DEBUG)
 
-        if args.simple:
-            cfg['simple_engine'] = True
-        elif args.workers:
-            cfg['engine']['workers'] = args.workers
-
-        p = WebServer('SamplePortal', options=cfg, debug=args.debug)
-        p.views = [IndexView, HomeView]
-        p.start()
+        cfg = {
+            'secret_key': "0123456789ABCDEF",
+            'max_content_length': 10485760,
+            'templates_auto_reload': bool(args.debug > 0),
+        }
+        webapp = BaseWebApp('SamplePortal', options=cfg)
+        webapp.views = [IndexView, HomeView]
+        webapp.create_app().run(
+            host='0.0.0.0',
+            port='8000',
+            debug=bool(args.debug >= 1),
+            use_reloader=bool(args.debug >= 3))
 
     except Exception:
-        print(format_exc())
+        log.fatal(format_exc())
         sys.exit(1)
