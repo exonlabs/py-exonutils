@@ -10,6 +10,7 @@ $PYTHON3 -m virtualenv ../venv3
 . ../venv3/bin/activate
 pip install -U pip setuptools wheel
 pip install -e ./
+pip install -r dev_requirements.txt
 deactivate
 
 # python2
@@ -18,6 +19,7 @@ $PYTHON2 -m virtualenv ../venv2
 . ../venv2/bin/activate
 pip install -U pip setuptools wheel
 pip install -e ./
+pip install -r dev_requirements.txt
 deactivate
 
 echo -e "\n* Done\n"
