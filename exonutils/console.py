@@ -8,6 +8,11 @@ import sys
 import re
 from builtins import input
 from getpass import getpass
+try:
+    import colorama
+    colorama.init()
+except ImportError:
+    colorama = None
 
 __all__ = ['ConsoleInput']
 
@@ -18,13 +23,26 @@ class ConsoleInput(object):
 
     @classmethod
     def _msg(cls, msg):
-        # print BOLD text message
-        return "\033[1m%s %s \033[0m" % (cls.input_caret, msg)
+        if colorama:
+            # print BOLD/BRIGHT text message
+            return "%s%s %s %s" % (
+                colorama.Style.BRIGHT,
+                cls.input_caret,
+                msg,
+                colorama.Style.RESET_ALL)
+        else:
+            return "%s %s " % (cls.input_caret, msg)
 
     @classmethod
     def _err(cls, msg):
-        # print RED color error message
-        return "\033[31;1m -- %s\033[0m" % msg
+        if colorama:
+            # print RED color error message
+            return "%s -- %s%s" % (
+                colorama.Fore.RED + colorama.Style.BRIGHT,
+                msg,
+                colorama.Style.RESET_ALL)
+        else:
+            return " -- %s" % msg
 
     @classmethod
     def _input(cls, msg, hidden=False):
