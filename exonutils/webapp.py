@@ -12,8 +12,6 @@ from traceback import format_exc
 
 __all__ = ['BaseWebApp', 'BaseRESTWebApp', 'BaseWebView']
 
-_log = logging.getLogger('%s.core' % __package__)
-
 
 class BaseWebApp(object):
 
@@ -54,8 +52,9 @@ class BaseWebApp(object):
         app.config['TRAP_HTTP_EXCEPTIONS'] = True
         app.config['TRAP_BAD_REQUEST_ERRORS'] = True
 
-        _log.debug("app config:\n  - %s" % '\n  - '.join(
-            ['%s: %s' % (k, v) for k, v in app.config.items()]))
+        logging.getLogger().debug(
+            "app config:\n  - %s" % '\n  - '.join(
+                ['%s: %s' % (k, v) for k, v in app.config.items()]))
 
         # set jinja options
         app.jinja_env.autoescape = True
@@ -69,7 +68,7 @@ class BaseWebApp(object):
             if hasattr(e, 'code'):
                 return self.response_handler((e.name, e.code))
             else:
-                _log.error(format_exc().strip())
+                logging.getLogger().error(format_exc().strip())
                 return self.response_handler(("Internal Server Error", 500))
 
         # check websrv views list
@@ -83,8 +82,8 @@ class BaseWebApp(object):
             for url, endpoint in V.routes:
                 app.add_url_rule(url, view_func=V.as_view(endpoint, self))
 
-        _log.debug("Loaded views: (%s)"
-                   % ','.join([V.__name__ for V in self.views]))
+        logging.getLogger().debug(
+            "Loaded views: (%s)" % ','.join([V.__name__ for V in self.views]))
 
         return app
 

@@ -12,8 +12,6 @@ from .process import BaseProcess
 
 __all__ = ['BaseService', 'BaseServiceTask']
 
-_log = logging.getLogger('%s.core' % __package__)
-
 
 class BaseService(BaseProcess):
 
@@ -35,7 +33,7 @@ class BaseService(BaseProcess):
         self.term_event = threading.Event()
 
     def initialize(self):
-        _log.info("Initializing")
+        logging.getLogger().info("Initializing")
 
         # check service tasks list
         if not self.tasks:
@@ -44,8 +42,8 @@ class BaseService(BaseProcess):
             if not issubclass(T, BaseServiceTask):
                 raise RuntimeError("Invalid task: %s" % str(T))
         # debug tasks
-        _log.debug("Loaded tasks: (%s)"
-                   % ','.join([T.__name__ for T in self.tasks]))
+        logging.getLogger().debug(
+            "Loaded tasks: (%s)" % ','.join([T.__name__ for T in self.tasks]))
 
     def execute(self):
         if self.term_event.is_set():
@@ -62,17 +60,17 @@ class BaseService(BaseProcess):
                 thrd = self._threads.get(T.__name__, None)
                 if thrd and not thrd.is_alive():
                     del(self._threads[T.__name__])
-                    _log.debug(
+                    logging.getLogger().debug(
                         "cleaned dead thread for <TASK:%s>" % T.__name__)
                 # start new task thread
                 if T.__name__ not in self._threads:
-                    _log.debug(
+                    logging.getLogger().debug(
                         "starting new thread for <TASK:%s>" % T.__name__)
                     t = T(self)
                     t.start()
                     self._threads[T.__name__] = t
             except Exception:
-                _log.error(format_exc().strip())
+                logging.getLogger().error(format_exc().strip())
 
         # checking threads interval
         for k in range(self.tasks_check_interval):
@@ -82,9 +80,9 @@ class BaseService(BaseProcess):
 
     def terminate(self):
         if self.reload_event.is_set():
-            _log.info("Reload all tasks")
+            logging.getLogger().info("Reload all tasks")
         else:
-            _log.info("Stopping all tasks")
+            logging.getLogger().info("Stopping all tasks")
 
         self.term_event.set()
 
@@ -100,7 +98,7 @@ class BaseService(BaseProcess):
             self.reload_event.clear()
             self.term_event.clear()
         else:
-            _log.info("Shutting down")
+            logging.getLogger().info("Shutting down")
 
     def handle_sigusr1(self):
         self.reload_event.set()
@@ -132,7 +130,7 @@ class BaseServiceTask(threading.Thread):
             while not self.term_event.is_set():
                 self.execute()
         except Exception:
-            _log.error(format_exc().strip())
+            logging.getLogger().error(format_exc().strip())
         except SystemExit:
             pass
 

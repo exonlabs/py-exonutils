@@ -10,8 +10,6 @@ from traceback import format_exc
 
 __all__ = ['BaseProcess']
 
-_log = logging.getLogger('%s.core' % __package__)
-
 
 class BaseProcess(object):
 
@@ -40,7 +38,7 @@ class BaseProcess(object):
             while True:
                 self.execute()
         except Exception:
-            _log.error(format_exc().strip())
+            logging.getLogger().error(format_exc().strip())
             self.stop(exit_status=1)
         except KeyboardInterrupt:
             self.stop()
@@ -55,14 +53,16 @@ class BaseProcess(object):
                 from setproctitle import setproctitle
                 setproctitle(str(self.proctitle).strip())
             except ImportError:
-                _log.debug("ignoring setproctitle - package not installed")
+                logging.getLogger().debug(
+                    "ignoring setproctitle - package not installed")
 
         # set process signal handler
         for s in self.signals:
             if hasattr(signal, s):
                 signal.signal(getattr(signal, s), self.signal)
             else:
-                _log.debug("invalid or not supported signal %s" % s)
+                logging.getLogger().debug(
+                    "invalid or not supported signal %s" % s)
 
         # run process
         self.run()
@@ -72,7 +72,7 @@ class BaseProcess(object):
             self.terminate()
             sys.exit(exit_status)
         except Exception:
-            _log.error(format_exc().strip())
+            logging.getLogger().error(format_exc().strip())
             sys.exit(1)
 
     # process signal handler dispatcher
@@ -85,10 +85,12 @@ class BaseProcess(object):
 
         handler = getattr(self, "handle_%s" % signame.lower(), None)
         if handler:
-            _log.debug("execute handler for signal: %s" % signame)
+            logging.getLogger().debug(
+                "execute handler for signal: %s" % signame)
             handler()
         else:
-            _log.debug("received signal: %s - (no handler)" % signame)
+            logging.getLogger().debug(
+                "received signal: %s - (no handler)" % signame)
 
     def handle_sigint(self):
         self.stop()
