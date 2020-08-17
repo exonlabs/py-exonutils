@@ -7,6 +7,7 @@ PYTHON2=python2.7
 # python3
 echo -e "\n* Setup application in develop mode for Python3"
 $PYTHON3 -m virtualenv ../venv3
+[ -d ../venv3 ] || { echo "failed to create py3 venv !!"; exit 1; }
 . ../venv3/bin/activate
 pip install -U pip setuptools wheel
 pip install -e ./
@@ -16,6 +17,7 @@ deactivate
 # python2
 echo -e "\n* Setup application in develop mode for Python2"
 $PYTHON2 -m virtualenv ../venv2
+[ -d ../venv2 ] || { echo "failed to create py2 venv !!"; exit 1; }
 . ../venv2/bin/activate
 pip install -U pip setuptools wheel
 pip install -e ./
