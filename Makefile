@@ -1,4 +1,4 @@
-.PHONY: clean clean-dist clean-dev clean-all setup-dev release
+.PHONY: clean clean-dist clean-dev clean-all setup-dev build release
 
 
 clean:
@@ -17,5 +17,8 @@ clean-all: clean-dev clean-dist
 setup-dev: clean-dev
 	@bash scripts/setup_dev.sh
 
+build: clean
+	@bash scripts/build.sh $(version)
+
 release: clean
-	@bash scripts/release.sh $(REL)
+	@bash scripts/release.sh

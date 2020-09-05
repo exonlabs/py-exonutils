@@ -7,20 +7,21 @@ import os
 import re
 from setuptools import setup, find_packages
 
-pkg_name = 'exonutils'
+pkgname = "exonutils"
 
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
-with open(os.path.join(pkg_name, '__init__.py'), 'rt') as f:
+with open(os.path.join(pkgname, '__init__.py'), 'rt') as f:
     version = re.search(r'__version__ = "(.*?)"', f.read()).group(1)
 with open('README.md', 'rt') as f:
     long_description = f.read()
 
 
 setup(
-    name=pkg_name,
+    name=pkgname,
     version=version,
     url='https://bitbucket.org/exonlabs/exonutils',
     author='ExonLabs',
+    author_email='exonlabs',
     license='BSD',
     description='Common and base utilities for applications.',
     long_description=long_description,

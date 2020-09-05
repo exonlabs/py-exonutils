@@ -1,27 +1,26 @@
 #!/bin/bash
 cd $(dirname $(readlink -f $0))/..
 
-PYTHON3=python3.7
-PYTHON2=python2.7
 
-# python3
-echo -e "\n* Setup application in develop mode for Python3"
-$PYTHON3 -m virtualenv ../venv3
-[ -d ../venv3 ] || { echo "failed to create py3 venv !!"; exit 1; }
-. ../venv3/bin/activate
-pip install -U pip setuptools wheel
-pip install -e ./
-pip install -r dev_requirements.txt
-deactivate
+for PYTHON in `cat PYTHON |xargs` ;do
+    echo -e "\n* Setup dev virtualenv for $PYTHON"
 
-# python2
-echo -e "\n* Setup application in develop mode for Python2"
-$PYTHON2 -m virtualenv ../venv2
-[ -d ../venv2 ] || { echo "failed to create py2 venv !!"; exit 1; }
-. ../venv2/bin/activate
-pip install -U pip setuptools wheel
-pip install -e ./
-pip install -r dev_requirements.txt
-deactivate
+    SETUPENV_PATH=../venv_$PYTHON
+    which $PYTHON >> /dev/null || { echo -e "\n-- Failed!! $PYTHON doesn't exist.\n"; exit 1; }
+
+    echo -e "\n- creating virtualenv ..."
+    $PYTHON -m virtualenv ${SETUPENV_PATH}
+    [ -f ${SETUPENV_PATH}/bin/activate ] || { echo -e "\n-- Error!! failed to create virtualenv.\n"; exit 1; }
+
+    . ${SETUPENV_PATH}/bin/activate
+    [ -z "${VIRTUAL_ENV}" ] && { echo -e "\n-- Error!! failed to activate virtualenv.\n"; exit 1; }
+    echo -e "\n- updating virtualenv packages ..."
+    pip install -U pip setuptools wheel
+    echo -e "\n- installing dev requirements ..."
+    pip install -r dev_requirements.txt
+    echo -e "\n- installing in develop mode ..."
+    pip install -e ./
+    deactivate
+done
 
 echo -e "\n* Done\n"
