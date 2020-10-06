@@ -5,162 +5,168 @@
 """
 import os
 import pickle
-import copy
-import time
 import logging
+import time
+from shutil import rmtree
 
-__all__ = ['SimpleBuffer', 'SharedFileBuffer']
-
-
-class _FileLock(object):
-
-    lock_poll_delay = 0.1  # delay in sec to check existing lock
-    lock_poll_trials = 5   # number of retires to check existing lock
-
-    def __init__(self, name, store_dir):
-        _dir = os.path.abspath(store_dir)
-        if not os.path.exists(_dir):
-            raise RuntimeError("dir doesn't exist: %s" % _dir)
-        self._lockfile = os.path.join(_dir, '%s.lock' % name)
-
-    def __enter__(self):
-        # bypass/ignore existing lock if timeout passes
-        for i in range(self.lock_poll_trials):
-            if not os.path.exists(self._lockfile):
-                open(self._lockfile, 'w').close()
-                break
-            time.sleep(self.lock_poll_delay)
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        try:
-            os.unlink(self._lockfile)
-        except:
-            pass
+__all__ = ['BaseBuffer', 'FileBuffer']
 
 
 class BaseBuffer(object):
 
-    def __init__(self, defaults={}):
-        self._defaults = copy.deepcopy(defaults) \
-            if type(defaults) is dict else {}
-        self._lock = None
-        self.init()
+    def __init__(self, name):
+        self.name = name
 
     def __repr__(self):
-        with self._lock:
-            d = self.load()
-        return d.__repr__()
+        return '<%s: %s>' % (self.__class__.__name__, self.name)
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
-
-    def init(self):
+    # low level list all buffer keys
+    def _list(self, trials=0):
         raise NotImplementedError()
 
-    def load(self):
+    # low level read key from buffer
+    def _read(self, key, trials=0):
         raise NotImplementedError()
 
-    def save(self, data):
+    # low level write key in buffer
+    def _write(self, key, value, trials=0):
         raise NotImplementedError()
 
-    def keys(self):
-        with self._lock:
-            d = self.load()
-        return d.keys()
+    # low level delete key from buffer
+    def _delete(self, key, trials=0):
+        raise NotImplementedError()
 
-    def items(self):
-        with self._lock:
-            d = self.load()
-        return d.items()
+    # low level delete all buffer data
+    def _purge(self, trials=0):
+        raise NotImplementedError()
 
-    def get(self, key, default=None):
-        with self._lock:
-            d = self.load()
-        return d.get(key, default)
+    def init(self, defaults, clean=True, trials=3):
+        if clean:
+            self._purge(trials=trials)
+        for k, v in defaults:
+            self._write(k, v, trials=trials)
 
-    def set(self, key, value):
-        with self._lock:
-            d = self.load()
-            d[key] = value
-            self.save(d)
+    # list all keys in buffer
+    def keys(self, trials=3):
+        return self._list(trials=trials)
 
-    def delete(self, key):
-        with self._lock:
-            d = self.load()
-            del(d[key])
-            self.save(d)
+    # list all items in buffer
+    def items(self, trials=3):
+        return {k: self._read(k, trials=trials)
+                for k in self._list(trials=trials)}
 
-    def reset(self):
-        with self._lock:
-            self.save(self._defaults)
+    # get certain key from buffer
+    def get(self, key, default=None, trials=3):
+        res = self._read(key, trials=trials)
+        return res if res is not None else default
 
-    def purge(self):
-        pass
+    # set certain key in buffer
+    def set(self, key, value, trials=3):
+        return self._write(key, value, trials=trials)
 
+    # delete certain key from buffer
+    def delete(self, key, trials=3):
+        return self._delete(key, trials=trials)
 
-# pure in memory dict based buffer
-class SimpleBuffer(BaseBuffer):
-
-    def init(self):
-        from multiprocessing import RLock
-        self._lock = RLock()
-        self._data = copy.deepcopy(self._defaults)
-
-    def load(self):
-        return self._data
-
-    def save(self, data):
-        self._data = copy.deepcopy(data)
+    # purge buffer
+    def purge(self, trials=3):
+        return self._purge(trials=trials)
 
 
 # file based data buffer
-class SharedFileBuffer(BaseBuffer):
+class FileBuffer(BaseBuffer):
 
-    def __init__(self, name, defaults={}, store_dir='', create_dirs=False):
-        self._defaults = copy.deepcopy(defaults) \
-            if type(defaults) is dict else {}
+    def __init__(self, name, root_dir='', logger=None):
+        super(FileBuffer, self).__init__(name)
 
-        if store_dir:
-            _dir = os.path.abspath(store_dir)
+        # root dir to use for storage
+        if root_dir:
+            self.root_dir = os.path.abspath(root_dir)
         else:
             from tempfile import gettempdir
-            _dir = gettempdir()
-        if not os.path.exists(_dir):
-            if create_dirs:
-                os.makedirs(_dir)
-            else:
-                raise RuntimeError("dir doesn't exist: %s" % _dir)
-        self._fpath = os.path.join(_dir, '%s.dat' % name)
-        self._lock = _FileLock(name, _dir)
+            self.root_dir = gettempdir()
 
-        self.init()
+        # buffer store path
+        self.base_path = os.path.join(self.root_dir, self.name)
 
-    def init(self):
-        if not os.path.exists(self._fpath):
-            self.save(self._defaults)
+        # buffer logger
+        self.log = logger if logger else logging.getLogger(__name__)
 
-    def load(self):
-        if os.path.exists(self._fpath):
+    # low level list all buffer keys
+    def _list(self, trials=3):
+        for i in range(trials):
             try:
-                with open(self._fpath, 'rb') as f:
+                if not os.path.exists(self.base_path):
+                    return []
+                root, dirs, files = os.walk(self.base_path)
+                return list(files)
+            except Exception as e:
+                self.log.warn("failed listing filebuffer %s - %s"
+                              % (self.base_path, e))
+            time.sleep(0.05)
+
+        return []
+
+    # low level read key from buffer
+    def _read(self, key, trials=3):
+        fpath = os.path.join(self.base_path, key)
+        for i in range(trials):
+            try:
+                if not os.path.exists(fpath):
+                    return None
+                with open(fpath, 'rb') as f:
                     return pickle.load(f)
             except Exception as e:
-                logging.getLogger().debug(
-                    "failed to load buffer %s - %s" % (self._fpath, e))
-        return {}
+                self.log.warn("failed reading filebuffer key %s - %s"
+                              % (fpath, e))
+                time.sleep(0.05)
 
-    def save(self, data):
-        with open(self._fpath, 'wb') as f:
-            pickle.dump(data, f)
+        return None
 
-    def purge(self):
-        try:
-            if os.path.exists(self._fpath):
-                os.unlink(self._fpath)
-        except Exception as e:
-            logging.getLogger().debug(
-                "failed to purge buffer %s - %s" % (self._fpath, e))
+    # low level write key in buffer
+    def _write(self, key, value, trials=3):
+        fpath = os.path.join(self.base_path, key)
+        for i in range(trials):
+            try:
+                if not os.path.exists(self.base_path):
+                    os.makedirs(self.base_path)
+                with open(fpath, 'wb') as f:
+                    pickle.dump(value, f)
+                return True
+            except Exception as e:
+                self.log.warn("failed writing filebuffer key %s - %s"
+                              % (fpath, e))
+                time.sleep(0.05)
+
+        return False
+
+    # low level delete key from buffer
+    def _delete(self, key, trials=3):
+        fpath = os.path.join(self.base_path, key)
+        for i in range(trials):
+            try:
+                if not os.path.exists(fpath):
+                    return True
+                os.unlink(fpath)
+                return True
+            except Exception as e:
+                self.log.warn("failed deleting filebuffer key %s - %s"
+                              % (fpath, e))
+                time.sleep(0.05)
+
+        return False
+
+    # low level delete all buffer data
+    def _purge(self, trials=3):
+        for i in range(trials):
+            try:
+                if not os.path.exists(self.base_path):
+                    return True
+                rmtree(self.base_path, ignore_errors=True)
+                return True
+            except Exception as e:
+                self.log.warn("failed purging filebuffer %s - %s"
+                              % (self.base_path, e))
+                time.sleep(0.05)
+
+        return False
