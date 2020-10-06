@@ -15,8 +15,7 @@ except ImportError:
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
-    format='%(asctime)s %(levelname)s %(message)s')
-log = logging.getLogger()
+    format='%(asctime)s [%(name)s] %(levelname)s %(message)s')
 
 rlog = logging.getLogger('werkzeug')
 rlog.setLevel(logging.INFO)
@@ -38,7 +37,7 @@ class Res1(BaseWebView):
               ('/res1/<guid>', 'res1_1')]
 
     def get(self, **kw):
-        log.debug(self.__class__.__name__)
+        self.log.debug(self.__class__.__name__)
         return kw
 
 
@@ -47,7 +46,7 @@ class Res2(BaseWebView):
               ('/res2/<guid>', 'res2_1')]
 
     def get(self, **kw):
-        log.debug(self.__class__.__name__)
+        self.log.debug(self.__class__.__name__)
         return {'result': self.__class__.__name__}
 
     def post(self, **kw):
@@ -59,8 +58,13 @@ class Res2(BaseWebView):
 
 
 if __name__ == '__main__':
+    log = logging.getLogger()
+    log.name = 'SampleRESTSRV'
     try:
         pr = ArgumentParser(prog=None)
+        # debug modes:
+        # -x      debug ON
+        # -xxx    debug ON, dev mode ON
         pr.add_argument('-x', dest='debug', action='count', default=0,
                         help='set debug modes')
         pr.add_argument('--xml', action='store_true',
@@ -68,7 +72,7 @@ if __name__ == '__main__':
         args = pr.parse_args()
 
         if args.debug > 0:
-            logging.getLogger().setLevel(logging.DEBUG)
+            log.setLevel(logging.DEBUG)
 
         cfg = {
             'secret_key': "0123456789ABCDEF",
@@ -76,8 +80,10 @@ if __name__ == '__main__':
             'templates_auto_reload': bool(args.debug > 0),
         }
         cls = XMLRESTWebServer if args.xml else BaseRESTWebApp
-        webapp = cls('SampleRESTSRV', options=cfg)
+        webapp = cls('SampleRESTSRV', options=cfg, logger=log)
         webapp.views = [Res1, Res2]
+
+        log.info("Initializing")
         webapp.create_app().run(
             host='0.0.0.0',
             port='8000',

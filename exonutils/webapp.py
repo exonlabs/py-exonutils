@@ -15,7 +15,7 @@ __all__ = ['BaseWebApp', 'BaseRESTWebApp', 'BaseWebView']
 
 class BaseWebApp(object):
 
-    def __init__(self, name, options={}):
+    def __init__(self, name, options={}, logger=None):
         self.name = name
         self.options = options
         self.base_path = ''
@@ -23,6 +23,9 @@ class BaseWebApp(object):
 
         # webapp views list
         self.views = []
+
+        # webapp logger
+        self.log = logger if logger else logging.getLogger(__name__)
 
     # response handler
     def response_handler(self, result):
@@ -52,9 +55,9 @@ class BaseWebApp(object):
         app.config['TRAP_HTTP_EXCEPTIONS'] = True
         app.config['TRAP_BAD_REQUEST_ERRORS'] = True
 
-        logging.getLogger().debug(
-            "app config:\n  - %s" % '\n  - '.join(
-                ['%s: %s' % (k, v) for k, v in app.config.items()]))
+        # debug options
+        self.log.debug("app config:\n  - %s" % '\n  - '.join(
+                       ['%s: %s' % (k, v) for k, v in app.config.items()]))
 
         # set jinja options
         app.jinja_env.autoescape = True
@@ -68,7 +71,7 @@ class BaseWebApp(object):
             if hasattr(e, 'code'):
                 return self.response_handler((e.name, e.code))
             else:
-                logging.getLogger().error(format_exc().strip())
+                self.log.error(format_exc().strip())
                 return self.response_handler(("Internal Server Error", 500))
 
         # check websrv views list
@@ -81,9 +84,9 @@ class BaseWebApp(object):
             V.initialize(self, app)
             for url, endpoint in V.routes:
                 app.add_url_rule(url, view_func=V.as_view(endpoint, self))
-
-        logging.getLogger().debug(
-            "Loaded views: (%s)" % ','.join([V.__name__ for V in self.views]))
+        # debug views
+        self.log.debug("Loaded views: (%s)"
+                       % ','.join([V.__name__ for V in self.views]))
 
         return app
 
@@ -113,6 +116,9 @@ class BaseWebView(MethodView):
     def __init__(self, webapp):
         self.name = self.__class__.__name__
         self.response_handler = webapp.response_handler
+
+        # view logger
+        self.log = webapp.log
 
     @classmethod
     def initialize(cls, webapp, app):

@@ -17,11 +17,14 @@ class BaseProcess(object):
     signals = ['SIGINT', 'SIGTERM', 'SIGQUIT',
                'SIGHUP', 'SIGUSR1', 'SIGUSR2']
 
-    def __init__(self, name):
+    def __init__(self, name, logger=None):
         # process name
         self.name = name
         # process title to show in process table
         self.proctitle = self.name
+
+        # process logger
+        self.log = logger if logger else logging.getLogger(__name__)
 
     def initialize(self):
         pass
@@ -38,7 +41,7 @@ class BaseProcess(object):
             while True:
                 self.execute()
         except Exception:
-            logging.getLogger().error(format_exc().strip())
+            self.log.error(format_exc().strip())
             self.stop(exit_status=1)
         except KeyboardInterrupt:
             self.stop()
@@ -53,7 +56,7 @@ class BaseProcess(object):
                 from setproctitle import setproctitle
                 setproctitle(str(self.proctitle).strip())
             except ImportError:
-                logging.getLogger().debug(
+                self.log.debug(
                     "ignoring setproctitle - package not installed")
 
         # set process signal handler
@@ -61,7 +64,7 @@ class BaseProcess(object):
             if hasattr(signal, s):
                 signal.signal(getattr(signal, s), self.signal)
             else:
-                logging.getLogger().debug(
+                self.log.debug(
                     "invalid or not supported signal %s" % s)
 
         # run process
@@ -72,7 +75,7 @@ class BaseProcess(object):
             self.terminate()
             sys.exit(exit_status)
         except Exception:
-            logging.getLogger().error(format_exc().strip())
+            self.log.error(format_exc().strip())
             sys.exit(1)
 
     # process signal handler dispatcher
@@ -85,11 +88,11 @@ class BaseProcess(object):
 
         handler = getattr(self, "handle_%s" % signame.lower(), None)
         if handler:
-            logging.getLogger().debug(
+            self.log.debug(
                 "execute handler for signal: %s" % signame)
             handler()
         else:
-            logging.getLogger().debug(
+            self.log.debug(
                 "received signal: %s - (no handler)" % signame)
 
     def handle_sigint(self):

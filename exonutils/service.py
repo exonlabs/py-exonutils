@@ -18,8 +18,10 @@ class BaseService(BaseProcess):
     # interval in sec to check for tasks
     tasks_check_interval = 10
 
-    def __init__(self, name):
-        super(BaseService, self).__init__(name)
+    def __init__(self, name, logger=None):
+        # service logger
+        self.log = logger if logger else logging.getLogger(__name__)
+        super(BaseService, self).__init__(name, logger=self.log)
 
         # runtime threads buffer
         self._threads = dict()
@@ -33,7 +35,7 @@ class BaseService(BaseProcess):
         self.term_event = threading.Event()
 
     def initialize(self):
-        logging.getLogger().info("Initializing")
+        self.log.info("Initializing")
 
         # check service tasks list
         if not self.tasks:
@@ -42,8 +44,8 @@ class BaseService(BaseProcess):
             if not issubclass(T, BaseServiceTask):
                 raise RuntimeError("Invalid task: %s" % str(T))
         # debug tasks
-        logging.getLogger().debug(
-            "Loaded tasks: (%s)" % ','.join([T.__name__ for T in self.tasks]))
+        self.log.debug("Loaded tasks: (%s)"
+                       % ','.join([T.__name__ for T in self.tasks]))
 
     def execute(self):
         if self.term_event.is_set():
@@ -60,17 +62,17 @@ class BaseService(BaseProcess):
                 thrd = self._threads.get(T.__name__, None)
                 if thrd and not thrd.is_alive():
                     del(self._threads[T.__name__])
-                    logging.getLogger().debug(
+                    self.log.debug(
                         "cleaned dead thread for <TASK:%s>" % T.__name__)
                 # start new task thread
                 if T.__name__ not in self._threads:
-                    logging.getLogger().debug(
+                    self.log.debug(
                         "starting new thread for <TASK:%s>" % T.__name__)
                     t = T(self)
                     t.start()
                     self._threads[T.__name__] = t
             except Exception:
-                logging.getLogger().error(format_exc().strip())
+                self.log.error(format_exc().strip())
 
         # checking threads interval
         for k in range(self.tasks_check_interval):
@@ -80,9 +82,9 @@ class BaseService(BaseProcess):
 
     def terminate(self):
         if self.reload_event.is_set():
-            logging.getLogger().info("Reload all tasks")
+            self.log.info("Reload all tasks")
         else:
-            logging.getLogger().info("Stopping all tasks")
+            self.log.info("Stopping all tasks")
 
         self.term_event.set()
 
@@ -98,7 +100,7 @@ class BaseService(BaseProcess):
             self.reload_event.clear()
             self.term_event.clear()
         else:
-            logging.getLogger().info("Shutting down")
+            self.log.info("Shutting down")
 
     def handle_sigusr1(self):
         self.reload_event.set()
@@ -108,6 +110,9 @@ class BaseServiceTask(threading.Thread):
 
     def __init__(self, service):
         super(BaseServiceTask, self).__init__(name=self.__class__.__name__)
+
+        # task logger
+        self.log = service.log
 
         # task terminate event
         self.term_event = service.term_event
@@ -130,7 +135,7 @@ class BaseServiceTask(threading.Thread):
             while not self.term_event.is_set():
                 self.execute()
         except Exception:
-            logging.getLogger().error(format_exc().strip())
+            self.log.error(format_exc().strip())
         except SystemExit:
             pass
 

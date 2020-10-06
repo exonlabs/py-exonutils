@@ -8,8 +8,7 @@ from exonutils.service import BaseService, BaseServiceTask
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
-    format='%(asctime)s %(levelname)s %(message)s')
-log = logging.getLogger()
+    format='%(asctime)s [%(name)s] %(levelname)s %(message)s')
 
 counter = 0
 
@@ -17,34 +16,36 @@ counter = 0
 class Task1(BaseServiceTask):
 
     def initialize(self):
-        log.info("initializing task")
+        self.log.info("initializing <%s>" % self.__class__.__name__)
 
     def execute(self):
         global counter
-        log.debug("running ...")
+        self.log.debug("running ...")
         counter += 1
         self.sleep(5)
 
     def terminate(self):
-        log.info("terminating task")
+        self.log.info("terminating <%s>" % self.__class__.__name__)
 
 
 class Task2(BaseServiceTask):
 
     def initialize(self):
-        log.info("initializing task")
+        self.log.info("initializing <%s>" % self.__class__.__name__)
 
     def execute(self):
         global counter
-        log.debug("running ...")
-        log.info("count = %s" % counter)
+        self.log.debug("running ...")
+        self.log.info("count = %s" % counter)
         self.sleep(3)
 
     def terminate(self):
-        log.info("terminating task")
+        self.log.info("terminating <%s>" % self.__class__.__name__)
 
 
 if __name__ == '__main__':
+    log = logging.getLogger()
+    log.name = 'SampleService'
     try:
         pr = ArgumentParser(prog=None)
         pr.add_argument('-x', dest='debug', action='store_true',
@@ -52,9 +53,9 @@ if __name__ == '__main__':
         args = pr.parse_args()
 
         if args.debug:
-            logging.getLogger().setLevel(logging.DEBUG)
+            log.setLevel(logging.DEBUG)
 
-        s = BaseService('SampleService')
+        s = BaseService('SampleService', logger=log)
         s.tasks = [Task1, Task2]
         s.start()
 

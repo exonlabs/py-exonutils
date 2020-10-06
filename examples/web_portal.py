@@ -14,8 +14,7 @@ except ImportError:
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
-    format='%(asctime)s %(levelname)s %(message)s')
-log = logging.getLogger()
+    format='%(asctime)s [%(name)s] %(levelname)s %(message)s')
 
 rlog = logging.getLogger('werkzeug')
 rlog.setLevel(logging.INFO)
@@ -26,7 +25,7 @@ class IndexView(BaseWebView):
     routes = [('/', 'index')]
 
     def get(self, **kw):
-        log.debug(self.__class__.__name__)
+        self.log.debug(self.__class__.__name__)
         return self.__class__.__name__
 
 
@@ -34,27 +33,34 @@ class HomeView(BaseWebView):
     routes = [('/home', 'home')]
 
     def get(self, **kw):
-        log.debug(self.__class__.__name__)
+        self.log.debug(self.__class__.__name__)
         return self.__class__.__name__
 
 
 if __name__ == '__main__':
+    log = logging.getLogger()
+    log.name = 'SamplePortal'
     try:
         pr = ArgumentParser(prog=None)
+        # debug modes:
+        # -x      debug ON
+        # -xxx    debug ON, dev mode ON
         pr.add_argument('-x', dest='debug', action='count', default=0,
                         help='set debug modes')
         args = pr.parse_args()
 
         if args.debug > 0:
-            logging.getLogger().setLevel(logging.DEBUG)
+            log.setLevel(logging.DEBUG)
 
         cfg = {
             'secret_key': "0123456789ABCDEF",
             'max_content_length': 10485760,
             'templates_auto_reload': bool(args.debug > 0),
         }
-        webapp = BaseWebApp('SamplePortal', options=cfg)
+        webapp = BaseWebApp('SamplePortal', options=cfg, logger=log)
         webapp.views = [IndexView, HomeView]
+
+        log.info("Initializing")
         webapp.create_app().run(
             host='0.0.0.0',
             port='8000',

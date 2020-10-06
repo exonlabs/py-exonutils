@@ -163,7 +163,6 @@ class DatabaseHandler(object):
     def create_session(self):
         # adjust sqlalchemy logging
         logger = logging.getLogger('sqlalchemy')
-        logger.name = 'db'
         if self.debug >= 5:
             logger.setLevel(logging.DEBUG)
         elif self.debug >= 4:
@@ -194,7 +193,6 @@ def init_database(dbh, models):
 
     # adjust alembic logging
     logger = logging.getLogger('alembic')
-    logger.name = 'dbm'
     if dbh.debug >= 5:
         logger.setLevel(logging.DEBUG)
     elif dbh.debug >= 4:
