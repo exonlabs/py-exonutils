@@ -16,7 +16,7 @@ class Task1(BaseServiceTask):
 
     def initialize(self):
         self.log.info("initializing writer task")
-        self.buff = FileBuffer('SampleBuffer', logger=self.log)
+        self.buff = FileBuffer('SampleBuffer')
 
     def execute(self):
         global counter
@@ -39,7 +39,7 @@ class Task2(BaseServiceTask):
 
     def initialize(self):
         self.log.info("initializing reader task")
-        self.buff = FileBuffer('SampleBuffer', logger=self.log)
+        self.buff = FileBuffer('SampleBuffer')
 
     def execute(self):
         global counter

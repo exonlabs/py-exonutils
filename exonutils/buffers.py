@@ -5,8 +5,6 @@
 """
 import os
 import pickle
-import logging
-import time
 from shutil import rmtree
 
 __all__ = ['BaseBuffer', 'FileBuffer']
@@ -21,62 +19,62 @@ class BaseBuffer(object):
         return '<%s: %s>' % (self.__class__.__name__, self.name)
 
     # low level list all buffer keys
-    def _list(self, trials=0):
+    def _list(self):
         raise NotImplementedError()
 
     # low level read key from buffer
-    def _read(self, key, trials=0):
+    def _read(self, key):
         raise NotImplementedError()
 
     # low level write key in buffer
-    def _write(self, key, value, trials=0):
+    def _write(self, key, value):
         raise NotImplementedError()
 
     # low level delete key from buffer
-    def _delete(self, key, trials=0):
+    def _delete(self, key):
         raise NotImplementedError()
 
     # low level delete all buffer data
-    def _purge(self, trials=0):
+    def _purge(self):
         raise NotImplementedError()
 
-    def init(self, defaults, clean=True, trials=3):
+    def init(self, defaults, clean=True):
         if clean:
-            self._purge(trials=trials)
+            self._purge()
         for k, v in defaults:
-            self._write(k, v, trials=trials)
+            self._write(k, v)
 
     # list all keys in buffer
-    def keys(self, trials=3):
-        return self._list(trials=trials)
+    def keys(self):
+        return self._list()
 
     # list all items in buffer
-    def items(self, trials=3):
-        return {k: self._read(k, trials=trials)
-                for k in self._list(trials=trials)}
+    def items(self):
+        return {k: self._read(k)
+                for k in self._list()}
 
     # get certain key from buffer
-    def get(self, key, default=None, trials=3):
-        res = self._read(key, trials=trials)
+    def get(self, key, default=None):
+        res = self._read(key)
         return res if res is not None else default
 
     # set certain key in buffer
-    def set(self, key, value, trials=3):
-        return self._write(key, value, trials=trials)
+    def set(self, key, value):
+        return self._write(key, value)
 
     # delete certain key from buffer
-    def delete(self, key, trials=3):
-        return self._delete(key, trials=trials)
+    def delete(self, key):
+        return self._delete(key)
 
     # purge buffer
-    def purge(self, trials=3):
-        return self._purge(trials=trials)
+    def purge(self):
+        return self._purge()
 
 
 # file based data buffer
 class FileBuffer(BaseBuffer):
 
-    def __init__(self, name, root_dir='', logger=None):
+    def __init__(self, name, root_dir=''):
         super(FileBuffer, self).__init__(name)
 
         # root dir to use for storage
@@ -89,84 +87,36 @@ class FileBuffer(BaseBuffer):
         # buffer store path
         self.base_path = os.path.join(self.root_dir, self.name)
 
-        # buffer logger
-        self.log = logger if logger else logging.getLogger(__name__)
-
     # low level list all buffer keys
-    def _list(self, trials=3):
-        for i in range(trials):
-            try:
-                if not os.path.exists(self.base_path):
-                    return []
-                root, dirs, files = os.walk(self.base_path)
-                return list(files)
-            except Exception as e:
-                self.log.warn("failed listing filebuffer %s - %s"
-                              % (self.base_path, e))
-            time.sleep(0.05)
-
+    def _list(self):
+        if os.path.exists(self.base_path):
+            root, dirs, files = os.walk(self.base_path)
+            return list(files)
         return []
 
     # low level read key from buffer
-    def _read(self, key, trials=3):
+    def _read(self, key):
         fpath = os.path.join(self.base_path, key)
-        for i in range(trials):
-            try:
-                if not os.path.exists(fpath):
-                    return None
-                with open(fpath, 'rb') as f:
-                    return pickle.load(f)
-            except Exception as e:
-                self.log.warn("failed reading filebuffer key %s - %s"
-                              % (fpath, e))
-                time.sleep(0.05)
-
+        if os.path.exists(fpath):
+            with open(fpath, 'rb') as f:
+                return pickle.load(f)
         return None
 
     # low level write key in buffer
-    def _write(self, key, value, trials=3):
+    def _write(self, key, value):
+        if not os.path.exists(self.base_path):
+            os.makedirs(self.base_path)
         fpath = os.path.join(self.base_path, key)
-        for i in range(trials):
-            try:
-                if not os.path.exists(self.base_path):
-                    os.makedirs(self.base_path)
-                with open(fpath, 'wb') as f:
-                    pickle.dump(value, f)
-                return True
-            except Exception as e:
-                self.log.warn("failed writing filebuffer key %s - %s"
-                              % (fpath, e))
-                time.sleep(0.05)
-
-        return False
+        with open(fpath, 'wb') as f:
+            pickle.dump(value, f)
 
     # low level delete key from buffer
-    def _delete(self, key, trials=3):
+    def _delete(self, key):
         fpath = os.path.join(self.base_path, key)
-        for i in range(trials):
-            try:
-                if not os.path.exists(fpath):
-                    return True
-                os.unlink(fpath)
-                return True
-            except Exception as e:
-                self.log.warn("failed deleting filebuffer key %s - %s"
-                              % (fpath, e))
-                time.sleep(0.05)
-
-        return False
+        if os.path.exists(fpath):
+            os.unlink(fpath)
 
     # low level delete all buffer data
-    def _purge(self, trials=3):
-        for i in range(trials):
-            try:
-                if not os.path.exists(self.base_path):
-                    return True
-                rmtree(self.base_path, ignore_errors=True)
-                return True
-            except Exception as e:
-                self.log.warn("failed purging filebuffer %s - %s"
-                              % (self.base_path, e))
-                time.sleep(0.05)
-
-        return False
+    def _purge(self):
+        if os.path.exists(self.base_path):
+            rmtree(self.base_path, ignore_errors=True)
