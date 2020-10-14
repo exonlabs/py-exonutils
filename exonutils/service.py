@@ -43,9 +43,6 @@ class BaseService(BaseProcess):
         for T in self.tasks:
             if not issubclass(T, BaseServiceTask):
                 raise RuntimeError("Invalid task: %s" % str(T))
-        # debug tasks
-        self.log.debug("Loaded tasks: (%s)"
-                       % ','.join([T.__name__ for T in self.tasks]))
 
     def execute(self):
         if self.term_event.is_set():

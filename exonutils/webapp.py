@@ -55,10 +55,6 @@ class BaseWebApp(object):
         app.config['TRAP_HTTP_EXCEPTIONS'] = True
         app.config['TRAP_BAD_REQUEST_ERRORS'] = True
 
-        # debug options
-        self.log.debug("app config:\n  - %s" % '\n  - '.join(
-                       ['%s: %s' % (k, v) for k, v in app.config.items()]))
-
         # set jinja options
         app.jinja_env.autoescape = True
         app.jinja_env.auto_reload = app.config['TEMPLATES_AUTO_RELOAD']
@@ -84,9 +80,6 @@ class BaseWebApp(object):
             V.initialize(self, app)
             for url, endpoint in V.routes:
                 app.add_url_rule(url, view_func=V.as_view(endpoint, self))
-        # debug views
-        self.log.debug("Loaded views: (%s)"
-                       % ','.join([V.__name__ for V in self.views]))
 
         return app
 
