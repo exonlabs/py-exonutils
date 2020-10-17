@@ -21,7 +21,6 @@ setup(
     version=version,
     url='https://bitbucket.org/exonlabs/exonutils',
     author='ExonLabs',
-    author_email='exonlabs',
     license='BSD',
     description='Common and base utilities for applications.',
     long_description=long_description,
