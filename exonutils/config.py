@@ -6,10 +6,7 @@
 import os
 import copy
 import pickle
-try:
-    import simplejson as json
-except ImportError:
-    import json
+import json
 
 __all__ = ['BaseFileConfig', 'PickleFileConfig', 'JsonFileConfig']
 
