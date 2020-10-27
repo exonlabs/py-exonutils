@@ -11,21 +11,13 @@ import json
 __all__ = ['BaseFileConfig', 'PickleFileConfig', 'JsonFileConfig']
 
 
-# python 2/3 compatible unicode to string conversion
-def _str(value):
-    try:
-        if type(value) is unicode:
-            return str(value)
-    except:
-        pass
-    return value
-
-
 # base configuration file handler
 class BaseFileConfig(object):
 
     # prefix char for encode/decode dict keys
-    encoding_char = '.'
+    encoding_char = '*'
+    # char for dict sub-keys
+    subkey_char = '.'
 
     def __init__(self, filepath, defaults=None):
         self.filepath = filepath
@@ -45,10 +37,6 @@ class BaseFileConfig(object):
     def _save(self, cfg):
         raise NotImplementedError()
 
-    # low level delete config file
-    def _purge(self):
-        raise NotImplementedError()
-
     # low level value encoding
     def _encode(self, value):
         blob = bytearray(pickle.dumps(value))
@@ -61,7 +49,7 @@ class BaseFileConfig(object):
     # search and encode dict keys recursively
     def _encode_dict(self, d1):
         for k, v in d1.items():
-            if type(_str(k)) is str and _str(k[0]) == self.encoding_char:
+            if str(k)[0] == str(self.encoding_char)[0]:
                 d1[k] = self._encode(v)
             elif type(v) is dict:
                 d1[k] = self._encode_dict(v)
@@ -70,7 +58,7 @@ class BaseFileConfig(object):
     # search and decode dict keys recursively
     def _decode_dict(self, d1):
         for k, v in d1.items():
-            if type(_str(k)) is str and _str(k[0]) == self.encoding_char:
+            if str(k)[0] == str(self.encoding_char)[0]:
                 d1[k] = self._decode(v)
             elif type(v) is dict:
                 d1[k] = self._decode_dict(v)
@@ -98,7 +86,15 @@ class BaseFileConfig(object):
 
     # purge config file
     def purge(self):
-        self._purge()
+        if os.path.exists(self.filepath):
+            os.unlink(self.filepath)
+
+    # dump config file contents
+    def dump(self):
+        if os.path.exists(self.filepath):
+            with open(self.filepath, 'rb') as f:
+                return f.read()
+        return None
 
     # list all keys in config
     def keys(self):
@@ -110,16 +106,46 @@ class BaseFileConfig(object):
 
     # get certain key from config
     def get(self, key, default=None):
-        return self.data.get(key, default)
+        try:
+            k, c = str(key), str(self.subkey_char)[0]
+            if c in k:
+                return eval("self.data['%s']" % k.replace(c, "']['"))
+            else:
+                return self.data[k]
+        except:
+            pass
+        return default
 
     # set certain key in config
     def set(self, key, value):
-        self.data[key] = value
+        try:
+            k, c = str(key), str(self.subkey_char)[0]
+            if c in k:
+                kparts = k.split(c)
+                kparts.reverse()
+                d = {kparts[0]: value}
+                for n in kparts[1:]:
+                    d = {n: d}
+                self.data = self._merge_dicts(self.data, d)
+            else:
+                self.data[k] = value
+            return True
+        except:
+            pass
+        return False
 
     # delete certain key from config
     def delete(self, key):
-        if key in self.data:
-            del(self.date[key])
+        try:
+            k, c = str(key), str(self.subkey_char)[0]
+            if c in k:
+                exec("del(self.data['%s'])" % k.replace(c, "']['"))
+            else:
+                del(self.data[key])
+            return True
+        except:
+            pass
+        return False
 
 
 # pickled config file handler
@@ -137,11 +163,6 @@ class PickleFileConfig(BaseFileConfig):
         with open(self.filepath, 'wb') as f:
             pickle.dump(cfg, f)
 
-    # purge config file
-    def _purge(self):
-        if os.path.exists(self.filepath):
-            os.unlink(self.filepath)
-
 
 # json config file handler
 class JsonFileConfig(BaseFileConfig):
@@ -157,8 +178,3 @@ class JsonFileConfig(BaseFileConfig):
     def _save(self, cfg):
         with open(self.filepath, 'w') as f:
             json.dump(cfg, f, indent=2)
-
-    # purge config file
-    def _purge(self):
-        if os.path.exists(self.filepath):
-            os.unlink(self.filepath)
