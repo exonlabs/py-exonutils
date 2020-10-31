@@ -17,15 +17,26 @@ class Task1(BaseServiceTask):
 
     def initialize(self):
         self.log.info("initializing <%s>" % self.__class__.__name__)
+        self.term_count = None
 
     def execute(self):
         global counter
         self.log.debug("running ...")
         counter += 1
-        self.sleep(5)
+        self.log.info("new count = %s" % counter)
+        self.sleep(2)
 
     def terminate(self):
         self.log.info("terminating <%s>" % self.__class__.__name__)
+
+    def term_signal(self):
+        global counter
+        if self.term_count is None:
+            self.term_count = counter + 3
+            self.log.info(
+                "TERM_EVENT: waiting till count = %s" % self.term_count)
+        elif counter >= self.term_count:
+            self.term_event.set()
 
 
 class Task2(BaseServiceTask):
@@ -37,7 +48,9 @@ class Task2(BaseServiceTask):
         global counter
         self.log.debug("running ...")
         self.log.info("count = %s" % counter)
-        self.sleep(3)
+        if counter == 5:
+            raise RuntimeError("Killing myself for test at count=5 ;)")
+        self.sleep(1)
 
     def terminate(self):
         self.log.info("terminating <%s>" % self.__class__.__name__)

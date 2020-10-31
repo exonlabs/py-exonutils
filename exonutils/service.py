@@ -111,8 +111,10 @@ class BaseServiceTask(threading.Thread):
         # task logger
         self.log = service.log
 
+        # service terminate event
+        self.service_term_event = service.term_event
         # task terminate event
-        self.term_event = service.term_event
+        self.term_event = threading.Event()
 
     def initialize(self):
         pass
@@ -123,6 +125,9 @@ class BaseServiceTask(threading.Thread):
     def terminate(self):
         pass
 
+    def term_signal(self):
+        self.term_event.set()
+
     def run(self):
         # initialize task
         self.initialize()
@@ -131,6 +136,8 @@ class BaseServiceTask(threading.Thread):
             # run task forever or till term_event
             while not self.term_event.is_set():
                 self.execute()
+                if self.service_term_event.is_set():
+                    self.term_signal()
         except Exception:
             self.log.error(format_exc().strip())
         except SystemExit:
@@ -146,5 +153,5 @@ class BaseServiceTask(threading.Thread):
         raise SystemExit()
 
     def sleep(self, timeout):
-        if self.term_event.wait(timeout=timeout):
+        if self.service_term_event.wait(timeout=timeout):
             raise SystemExit()
