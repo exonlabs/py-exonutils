@@ -8,7 +8,9 @@ from exonutils.service import BaseService, BaseServiceTask
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
-    format='%(asctime)s [%(name)s] %(levelname)s %(message)s')
+    format='%(asctime)s %(levelname)-5.5s [%(name)s] %(message)s')
+logging.addLevelName(logging.WARNING, "WARN")
+logging.addLevelName(logging.CRITICAL, "FATAL")
 
 counter = 0
 
@@ -16,7 +18,7 @@ counter = 0
 class Task1(BaseServiceTask):
 
     def initialize(self):
-        self.log.info("initializing <%s>" % self.__class__.__name__)
+        self.log.info("initializing")
         self.term_count = None
 
     def execute(self):
@@ -27,7 +29,7 @@ class Task1(BaseServiceTask):
         self.sleep(2)
 
     def terminate(self):
-        self.log.info("terminating <%s>" % self.__class__.__name__)
+        self.log.info("terminating")
 
     def term_signal(self):
         global counter
@@ -42,7 +44,7 @@ class Task1(BaseServiceTask):
 class Task2(BaseServiceTask):
 
     def initialize(self):
-        self.log.info("initializing <%s>" % self.__class__.__name__)
+        self.log.info("initializing")
 
     def execute(self):
         global counter
@@ -53,24 +55,26 @@ class Task2(BaseServiceTask):
         self.sleep(1)
 
     def terminate(self):
-        self.log.info("terminating <%s>" % self.__class__.__name__)
+        self.log.info("terminating")
 
 
 if __name__ == '__main__':
     log = logging.getLogger()
-    log.name = 'SampleService'
+    log.name = 'main'
     try:
         pr = ArgumentParser(prog=None)
-        pr.add_argument('-x', dest='debug', action='store_true',
-                        help='enable debug mode')
+        pr.add_argument(
+            '-x', dest='debug', action='count', default=0,
+            help='set debug modes')
         args = pr.parse_args()
 
-        if args.debug:
+        if args.debug > 0:
             log.setLevel(logging.DEBUG)
 
-        s = BaseService('SampleService', logger=log)
-        s.tasks = [Task1, Task2]
-        s.start()
+        srv = BaseService('SampleService', logger=log, debug=args.debug)
+        srv.tasks = [Task1, Task2]
+
+        srv.start()
 
     except Exception:
         log.fatal(format_exc())

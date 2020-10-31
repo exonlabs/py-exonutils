@@ -18,10 +18,9 @@ class BaseService(BaseProcess):
     # interval in sec to check for tasks
     tasks_check_interval = 10
 
-    def __init__(self, name, logger=None):
-        # service logger
-        self.log = logger if logger else logging.getLogger(__name__)
-        super(BaseService, self).__init__(name, logger=self.log)
+    def __init__(self, name, logger=None, debug=0):
+        _logger = logger if logger else logging.getLogger(__name__)
+        super(BaseService, self).__init__(name, logger=_logger, debug=debug)
 
         # runtime threads buffer
         self._threads = dict()
@@ -43,6 +42,14 @@ class BaseService(BaseProcess):
         for T in self.tasks:
             if not issubclass(T, BaseServiceTask):
                 raise RuntimeError("Invalid task: %s" % str(T))
+        # debug tasks
+        if self.debug >= 3:
+            self.log.debug("Loaded tasks: (%s)"
+                           % ','.join([T.__name__ for T in self.tasks]))
+
+    def run(self):
+        self.log.info("Starting all tasks")
+        super(BaseService, self).run()
 
     def execute(self):
         if self.term_event.is_set():
@@ -59,12 +66,10 @@ class BaseService(BaseProcess):
                 thrd = self._threads.get(T.__name__, None)
                 if thrd and not thrd.is_alive():
                     del(self._threads[T.__name__])
-                    self.log.debug(
-                        "cleaned dead thread for <TASK:%s>" % T.__name__)
+                    self.log.debug("cleaned dead <TASK:%s>" % T.__name__)
                 # start new task thread
                 if T.__name__ not in self._threads:
-                    self.log.debug(
-                        "starting new thread for <TASK:%s>" % T.__name__)
+                    self.log.debug("starting <TASK:%s>" % T.__name__)
                     t = T(self)
                     t.start()
                     self._threads[T.__name__] = t
@@ -109,12 +114,16 @@ class BaseServiceTask(threading.Thread):
         super(BaseServiceTask, self).__init__(name=self.__class__.__name__)
 
         # task logger
-        self.log = service.log
+        self.log = logging.getLogger(self.name)
+        self.log.parent = service.log
 
         # service terminate event
         self.service_term_event = service.term_event
         # task terminate event
         self.term_event = threading.Event()
+
+        # debug level
+        self.debug = service.debug
 
     def initialize(self):
         pass

@@ -9,7 +9,9 @@ from exonutils.process import BaseProcess
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
-    format='%(asctime)s [%(name)s] %(levelname)s %(message)s')
+    format='%(asctime)s %(levelname)-5.5s [%(name)s] %(message)s')
+logging.addLevelName(logging.WARNING, "WARN")
+logging.addLevelName(logging.CRITICAL, "FATAL")
 
 
 class SampleProcess(BaseProcess):
@@ -42,17 +44,18 @@ class SampleProcess(BaseProcess):
 
 if __name__ == '__main__':
     log = logging.getLogger()
-    log.name = 'SampleProcess'
+    log.name = 'main'
     try:
         pr = ArgumentParser(prog=None)
-        pr.add_argument('-x', dest='debug', action='store_true',
-                        help='enable debug mode')
+        pr.add_argument(
+            '-x', dest='debug', action='count', default=0,
+            help='set debug modes')
         args = pr.parse_args()
 
-        if args.debug:
+        if args.debug > 0:
             log.setLevel(logging.DEBUG)
 
-        p = SampleProcess('SampleProcess', logger=log)
+        p = SampleProcess('SampleProcess', logger=log, debug=args.debug)
         p.start()
 
     except Exception:

@@ -15,7 +15,7 @@ __all__ = ['BaseWebApp', 'BaseRESTWebApp', 'BaseWebView']
 
 class BaseWebApp(object):
 
-    def __init__(self, name, options={}, logger=None):
+    def __init__(self, name, options={}, logger=None, debug=0):
         self.name = name
         self.options = options
         self.base_path = ''
@@ -26,6 +26,27 @@ class BaseWebApp(object):
 
         # webapp logger
         self.log = logger if logger else logging.getLogger(__name__)
+        # webapp requests logger
+        self.reqlog = logging.getLogger('%s.requests' % self.log.name)
+        self.reqlog.setLevel(logging.INFO)
+        self.reqlog.propagate = False
+
+        # debug level
+        self.debug = debug
+
+    def initialize(self):
+        self.log.info("Initializing")
+
+        # check websrv views list
+        if not self.views:
+            raise RuntimeError("No views loaded !!!")
+        for V in self.views:
+            if not issubclass(V, BaseWebView):
+                raise RuntimeError("Invalid view: %s" % str(V))
+        # debug views
+        if self.debug >= 3:
+            self.log.debug("Loaded views: (%s)"
+                           % ','.join([V.__name__ for V in self.views]))
 
     # response handler
     def response_handler(self, result):
@@ -61,6 +82,9 @@ class BaseWebApp(object):
         if self.tpl_loader and isinstance(self.tpl_loader, BaseLoader):
             app.jinja_loader = self.tpl_loader
 
+        if self.debug >= 3:
+            self.log.debug("loaded app config: %s" % app.config)
+
         # register exception handler
         @app.errorhandler(Exception)
         def exception_handler(e):
@@ -70,13 +94,8 @@ class BaseWebApp(object):
                 self.log.error(format_exc().strip())
                 return self.response_handler(("Internal Server Error", 500))
 
-        # check websrv views list
-        if not self.views:
-            raise RuntimeError("No views loaded !!!")
         # load webapp views
         for V in self.views:
-            if not issubclass(V, BaseWebView):
-                raise RuntimeError("Invalid view: %s" % str(V))
             V.initialize(self, app)
             for url, endpoint in V.routes:
                 app.add_url_rule(url, view_func=V.as_view(endpoint, self))
@@ -111,7 +130,11 @@ class BaseWebView(MethodView):
         self.response_handler = webapp.response_handler
 
         # view logger
-        self.log = webapp.log
+        self.log = logging.getLogger(self.name)
+        self.log.parent = webapp.log
+
+        # debug level
+        self.debug = webapp.debug
 
     @classmethod
     def initialize(cls, webapp, app):

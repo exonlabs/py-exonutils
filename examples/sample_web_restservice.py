@@ -15,11 +15,9 @@ except ImportError:
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
-    format='%(asctime)s [%(name)s] %(levelname)s %(message)s')
-
-rlog = logging.getLogger('werkzeug')
-rlog.setLevel(logging.INFO)
-rlog.propagate = False
+    format='%(asctime)s %(levelname)-5.5s [%(name)s] %(message)s')
+logging.addLevelName(logging.WARNING, "WARN")
+logging.addLevelName(logging.CRITICAL, "FATAL")
 
 
 class XMLRESTWebServer(BaseRESTWebApp):
@@ -59,16 +57,15 @@ class Res2(BaseWebView):
 
 if __name__ == '__main__':
     log = logging.getLogger()
-    log.name = 'SampleRESTSRV'
+    log.name = 'main'
     try:
         pr = ArgumentParser(prog=None)
-        # debug modes:
-        # -x      debug ON
-        # -xxx    debug ON, dev mode ON
-        pr.add_argument('-x', dest='debug', action='count', default=0,
-                        help='set debug modes')
-        pr.add_argument('--xml', action='store_true',
-                        help='use XML rest interface')
+        pr.add_argument(
+            '-x', dest='debug', action='count', default=0,
+            help='set debug modes')
+        pr.add_argument(
+            '--xml', action='store_true',
+            help='use XML rest interface')
         args = pr.parse_args()
 
         if args.debug > 0:
@@ -80,10 +77,14 @@ if __name__ == '__main__':
             'templates_auto_reload': bool(args.debug > 0),
         }
         cls = XMLRESTWebServer if args.xml else BaseRESTWebApp
-        webapp = cls('SampleRESTSRV', options=cfg, logger=log)
+        webapp = cls(
+            'SampleRESTSRV', options=cfg, logger=log, debug=args.debug)
         webapp.views = [Res1, Res2]
 
-        log.info("Initializing")
+        # adjust request logs
+        logging.getLogger('werkzeug').parent = webapp.reqlog
+
+        webapp.initialize()
         webapp.create_app().run(
             host='0.0.0.0',
             port='8000',

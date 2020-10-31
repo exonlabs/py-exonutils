@@ -17,7 +17,7 @@ class BaseProcess(object):
     signals = ['SIGINT', 'SIGTERM', 'SIGQUIT',
                'SIGHUP', 'SIGUSR1', 'SIGUSR2']
 
-    def __init__(self, name, logger=None):
+    def __init__(self, name, logger=None, debug=0):
         # process name
         self.name = name
         # process title to show in process table
@@ -25,6 +25,9 @@ class BaseProcess(object):
 
         # process logger
         self.log = logger if logger else logging.getLogger(__name__)
+
+        # debug level
+        self.debug = debug
 
     def initialize(self):
         pass
