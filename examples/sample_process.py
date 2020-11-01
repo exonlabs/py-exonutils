@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys
 import logging
-from time import sleep
 from argparse import ArgumentParser
 from traceback import format_exc
 
@@ -21,20 +20,22 @@ class SampleProcess(BaseProcess):
         self.counter = 0
 
     def execute(self):
-        self.log.debug("Running: %s ..." % self.counter)
         self.counter += 1
-        sleep(2)
+        self.log.debug("Running: %s ..." % self.counter)
+        if self.counter >= 10:
+            self.log.info("exit process after count = %s" % self.counter)
+            self.stop()
+        self.sleep(2)
 
     def terminate(self):
         self.log.info("Shutting down")
 
     def handle_sigusr1(self):
-        rootlogger = logging.getLogger()
-        if rootlogger.level != logging.DEBUG:
-            rootlogger.setLevel(logging.DEBUG)
+        if self.log.level != logging.DEBUG:
+            self.log.setLevel(logging.DEBUG)
             self.log.info("debugging ON")
         else:
-            rootlogger.setLevel(logging.INFO)
+            self.log.setLevel(logging.INFO)
             self.log.info("debugging OFF")
 
     def handle_sigusr2(self):

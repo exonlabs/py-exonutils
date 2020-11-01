@@ -23,22 +23,19 @@ class Task1(BaseServiceTask):
 
     def execute(self):
         global counter
-        self.log.debug("running ...")
         counter += 1
         self.log.info("new count = %s" % counter)
         self.sleep(2)
 
     def terminate(self):
-        self.log.info("terminating")
-
-    def term_signal(self):
         global counter
-        if self.term_count is None:
-            self.term_count = counter + 3
-            self.log.info(
-                "TERM_EVENT: waiting till count = %s" % self.term_count)
-        elif counter >= self.term_count:
-            self.term_event.set()
+
+        term_count = counter + 3
+        self.log.info("TERM_EVENT: wait till count = %s" % term_count)
+        while counter < term_count:
+            self.execute()
+
+        self.log.info("terminating")
 
 
 class Task2(BaseServiceTask):
@@ -48,10 +45,16 @@ class Task2(BaseServiceTask):
 
     def execute(self):
         global counter
-        self.log.debug("running ...")
-        self.log.info("count = %s" % counter)
+        self.log.info("monitoring count = %s" % counter)
+
         if counter == 5:
-            raise RuntimeError("Killing myself for test at count=5 ;)")
+            self.log.info("stopping myself at count = %s" % counter)
+            self.stop()
+
+        if counter >= 15:
+            self.log.info("stopping service at count = %s" % counter)
+            self.stop_service()
+
         self.sleep(1)
 
     def terminate(self):
@@ -73,7 +76,6 @@ if __name__ == '__main__':
 
         srv = BaseService('SampleService', logger=log, debug=args.debug)
         srv.tasks = [Task1, Task2]
-
         srv.start()
 
     except Exception:

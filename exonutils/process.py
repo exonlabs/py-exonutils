@@ -5,6 +5,7 @@
 """
 import sys
 import signal
+import threading
 import logging
 from traceback import format_exc
 
@@ -23,6 +24,9 @@ class BaseProcess(object):
         # process title to show in process table
         self.proctitle = self.name
 
+        # terminate event
+        self.term_event = threading.Event()
+
         # process logger
         self.log = logger if logger else logging.getLogger(__name__)
 
@@ -39,49 +43,55 @@ class BaseProcess(object):
         pass
 
     def run(self):
-        try:
-            # run process forever
-            while True:
-                self.execute()
-        except Exception:
-            self.log.error(format_exc().strip())
-            self.stop(exit_status=1)
-        except KeyboardInterrupt:
-            self.stop()
-
-    def start(self):
         # initialize process
         self.initialize()
 
-        # set process title
-        if self.proctitle:
+        # run process forever
+        while not self.term_event.is_set():
             try:
-                from setproctitle import setproctitle
-                setproctitle(str(self.proctitle).strip())
-            except ImportError:
-                self.log.debug(
-                    "ignoring setproctitle - package not installed")
+                self.execute()
+            except Exception:
+                self.log.error(format_exc().strip())
+            except KeyboardInterrupt:
+                break
 
-        # set process signal handler
-        for s in self.signals:
-            if hasattr(signal, s):
-                signal.signal(getattr(signal, s), self.signal)
-            else:
-                self.log.debug(
-                    "invalid or not supported signal %s" % s)
+        self.term_event.clear()
 
-        # run process
-        self.run()
+        # terminate process
+        self.terminate()
 
-    def stop(self, exit_status=0):
+    def start(self):
         try:
-            self.terminate()
-            sys.exit(exit_status)
+            # set process title
+            if self.proctitle:
+                try:
+                    from setproctitle import setproctitle
+                    setproctitle(str(self.proctitle).strip())
+                except ImportError:
+                    self.log.debug(
+                        "ignoring setproctitle - package not installed")
+
+            # set process signal handler
+            for s in self.signals:
+                if hasattr(signal, s):
+                    signal.signal(getattr(signal, s), self.signal)
+
+            # run process
+            self.run()
+
         except Exception:
             self.log.error(format_exc().strip())
             sys.exit(1)
 
-    # process signal handler dispatcher
+        sys.exit(0)
+
+    def stop(self):
+        self.term_event.set()
+
+    def sleep(self, timeout):
+        self.term_event.wait(timeout=timeout)
+
+    # signal handler dispatcher
     def signal(self, sig, frame):
         try:
             signame = signal.Signals(sig).name
@@ -91,20 +101,19 @@ class BaseProcess(object):
 
         handler = getattr(self, "handle_%s" % signame.lower(), None)
         if handler:
-            self.log.debug(
-                "execute handler for signal: %s" % signame)
+            self.log.info("-- received %s --" % signame)
             handler()
         else:
-            self.log.debug(
-                "received signal: %s - (no handler)" % signame)
+            self.log.info(
+                "-- received %s -- (no handler defined)" % signame)
 
     def handle_sigint(self):
         self.stop()
 
-    def handle_sigquit(self):
+    def handle_sigterm(self):
         self.stop()
 
-    def handle_sigterm(self):
+    def handle_sigquit(self):
         self.stop()
 
     def handle_sighup(self):
