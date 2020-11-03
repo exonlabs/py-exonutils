@@ -17,7 +17,7 @@ for PYTHON in `cat PYTHON |xargs` ;do
     echo -e "\n- updating virtualenv packages ..."
     pip install -U pip setuptools wheel
     echo -e "\n- installing dev requirements ..."
-    pip install -r dev_requirements.txt
+    pip install -Ur dev_requirements.txt
     echo -e "\n- installing in develop mode ..."
     pip install -e ./
     deactivate
