@@ -66,8 +66,6 @@ class BaseWebApp(object):
                 uuid.uuid1(), uuid.uuid4().hex).hex
         if not self.options.get('max_content_length', None):
             self.options['max_content_length'] = 10485760  # 10 MiB
-        if 'templates_auto_reload' not in self.options:
-            self.options['templates_auto_reload'] = False
 
         # update app config from options
         for k, v in self.options.items():
@@ -75,6 +73,7 @@ class BaseWebApp(object):
         # force specific app config
         app.config['TRAP_HTTP_EXCEPTIONS'] = True
         app.config['TRAP_BAD_REQUEST_ERRORS'] = True
+        app.config['TEMPLATES_AUTO_RELOAD'] = bool(self.debug >= 3)
 
         # set jinja options
         app.jinja_env.autoescape = True
@@ -82,13 +81,10 @@ class BaseWebApp(object):
         if self.tpl_loader and isinstance(self.tpl_loader, BaseLoader):
             app.jinja_loader = self.tpl_loader
 
-        if self.debug >= 3:
-            self.log.debug("loaded app config: %s" % app.config)
-
         # register exception handler
         @app.errorhandler(Exception)
         def exception_handler(e):
-            if hasattr(e, 'code'):
+            if hasattr(e, 'name') and hasattr(e, 'code'):
                 return self.response_handler((e.name, e.code))
             else:
                 self.log.error(format_exc().strip())
@@ -152,10 +148,10 @@ class BaseWebView(MethodView):
     def after_request(self, response):
         return response
 
-    def run_request(self, method, *args, **kw):
-        return method(*args, **kw)
+    def run_request(self, method, *args, **kwargs):
+        return method(*args, **kwargs)
 
-    def dispatch_request(self, *args, **kw):
+    def dispatch_request(self, *args, **kwargs):
         meth = getattr(self, request.method.lower(), None)
 
         # use GET method if request method is HEAD and no handler for it
@@ -170,7 +166,7 @@ class BaseWebView(MethodView):
         if result is not None:
             return self.response_handler(result)
 
-        result = self.run_request(meth, *args, **kw)
+        result = self.run_request(meth, *args, **kwargs)
 
         # exec after request handlers
         result = self._after_request(result)
