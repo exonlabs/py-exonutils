@@ -59,10 +59,6 @@ class BaseModel(object):
             dbs.commit()
 
     def delete(self, dbs, _commit=True, **attrs):
-        rels = ','.join([r.key for r in self.__mapper__.relationships
-                         if getattr(self, r.key).all()])
-        if rels:
-            raise RuntimeError("linked referances in: %s" % rels)
         dbs.delete(self)
         if _commit:
             dbs.commit()
@@ -72,7 +68,7 @@ class BaseModel(object):
         return dbs.query(cls).get(guid)
 
     @classmethod
-    def find(cls, dbs, _query=None, _order=None, _offset=0, _limit=50, **attrs): # noqa
+    def find(cls, dbs, _query=None, _order=None, _offset=0, _limit=-1, **attrs): # noqa
         q = _query or dbs.query(cls).filter_by(**attrs)
         _order = _order or cls.default_order()
         if _order is not None:
