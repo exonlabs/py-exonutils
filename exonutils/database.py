@@ -58,8 +58,20 @@ class BaseModel(object):
         if _commit:
             dbs.commit()
 
-    def delete(self, dbs, _commit=True, **attrs):
+    @classmethod
+    def update_all(cls, dbs, _commit=True, **attrs):
+        dbs.query(cls).update(attrs)
+        if _commit:
+            dbs.commit()
+
+    def delete(self, dbs, _commit=True):
         dbs.delete(self)
+        if _commit:
+            dbs.commit()
+
+    @classmethod
+    def delete_all(cls, dbs, _commit=True):
+        dbs.query(cls).delete(synchronize_session=False)
         if _commit:
             dbs.commit()
 
