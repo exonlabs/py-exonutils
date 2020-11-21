@@ -44,7 +44,7 @@ class BaseWebApp(object):
             if not issubclass(V, BaseWebView):
                 raise RuntimeError("Invalid view: %s" % str(V))
         # debug views
-        if self.debug >= 3:
+        if self.debug >= 2:
             self.log.debug("Loaded views: (%s)"
                            % ','.join([V.__name__ for V in self.views]))
 

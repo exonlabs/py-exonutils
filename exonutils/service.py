@@ -37,7 +37,7 @@ class BaseService(BaseProcess):
             if not issubclass(T, BaseServiceTask):
                 raise RuntimeError("Invalid task: %s" % str(T))
         # debug tasks
-        if self.debug >= 3:
+        if self.debug >= 2:
             self.log.debug("Loaded tasks: (%s)"
                            % ','.join([T.__name__ for T in self.tasks]))
 
