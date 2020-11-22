@@ -3,7 +3,6 @@
     :copyright: 2020, ExonLabs. All rights reserved.
     :license: BSD, see LICENSE for more details.
 """
-from __future__ import absolute_import, print_function
 import logging
 import uuid
 import sqlalchemy as sa

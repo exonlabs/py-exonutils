@@ -3,7 +3,6 @@
     :copyright: 2020, ExonLabs. All rights reserved.
     :license: BSD, see LICENSE for more details.
 """
-from __future__ import absolute_import, print_function
 import sys
 import re
 from builtins import input
@@ -46,7 +45,7 @@ class ConsoleInput(object):
 
     @classmethod
     def _input(cls, msg, hidden=False):
-        print(cls._msg(msg), end='')
+        print(cls._msg(msg), end='')  # noqa
         sys.stdout.flush()
         if hidden:
             return getpass(prompt='').strip()
