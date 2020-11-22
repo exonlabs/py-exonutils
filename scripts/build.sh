@@ -32,9 +32,9 @@ for PYTHON in `cat PYTHON |xargs` ;do
 done
 
 if [ ! -z "$1" ];then
-    # back to master latest commit
-    echo -e "\n- checking-out repo to master branch ..."
-    git checkout master
+    # back to legacy_py2 latest commit
+    echo -e "\n- checking-out repo to legacy_py2 branch ..."
+    git checkout legacy_py2
 
     # install latest dev after version bump
     echo -e "\n- install latest dev version ..."

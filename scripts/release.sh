@@ -14,8 +14,8 @@ git diff --quiet || { echo -e "\n-- Error!! uncommitted changes in repo.\n"; exi
 git tag |grep -q "${VERSION}" && { echo -e "\n-- Error!! release tag ${VERSION} already exist in repo.\n"; exit 1; }
 
 # checkout to latest commit
-echo -e "\n- checking-out repo to master branch ..."
-git checkout master
+echo -e "\n- checking-out repo to legacy_py2 branch ..."
+git checkout legacy_py2
 echo -e "\n- setting new release version ..."
 sed -i "s/^__version__ = \".*/__version__ = \"${VERSION}\"/g" ${PKGNAME}/__init__.py
 git commit -am "Release version '${VERSION}'"
