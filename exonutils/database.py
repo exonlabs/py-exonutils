@@ -15,6 +15,21 @@ __all__ = ['BaseModel', 'DatabaseHandler']
 DB_BACKENDS = ['sqlite', 'pgsql', 'mysql', 'mariadb']
 
 
+def init_db_logging(debug=0):
+    # adjust logging for sqlalchemy and alembic
+    sqlalchemy_logger = logging.getLogger('sqlalchemy')
+    alembic_logger = logging.getLogger('alembic')
+    if debug >= 5:
+        sqlalchemy_logger.setLevel(logging.DEBUG)
+        alembic_logger.setLevel(logging.DEBUG)
+    elif debug >= 4:
+        sqlalchemy_logger.setLevel(logging.INFO)
+        alembic_logger.setLevel(logging.INFO)
+    else:
+        sqlalchemy_logger.setLevel(logging.ERROR)
+        alembic_logger.setLevel(logging.ERROR)
+
+
 @as_declarative()
 class BaseModel(object):
 
@@ -121,6 +136,7 @@ class DatabaseHandler(object):
         self.debug = debug
         self.engine = None
         self.session_factory = None
+        self.session = None
 
         if backend == 'sqlite':
             driver = 'sqlite'
@@ -135,6 +151,12 @@ class DatabaseHandler(object):
         self.url = sa.engine.url.URL(
             driver, database=database, host=host, port=port,
             username=username, password=password, query=query)
+
+    def __enter__(self):
+        return self.create_session()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close_session()
 
     def init_engine(self, pool=None, connect_timeout=0, query_timeout=0):
         backend = self.url.get_backend_name()
@@ -167,29 +189,29 @@ class DatabaseHandler(object):
                     poolclass=sa.pool.NullPool,
                     connect_args=connect_args)
 
-    def create_session(self):
-        # adjust sqlalchemy logging
-        logger = logging.getLogger('sqlalchemy')
-        if self.debug >= 5:
-            logger.setLevel(logging.DEBUG)
-        elif self.debug >= 4:
-            logger.setLevel(logging.INFO)
-        else:
-            logger.setLevel(logging.ERROR)
-
-        # initialize engine
-        if not self.engine:
-            self.init_engine()
-
-        # create session factory
+    def create_session(self, use_existing=False):
         if not self.session_factory:
+            # initialize engine
+            if not self.engine:
+                self.init_engine()
+
+            # create session factory
             self.session_factory = sa.orm.scoped_session(
                 sa.orm.sessionmaker(bind=self.engine))
 
         # create session
-        return self.session_factory()
+        if self.session:
+            if use_existing:
+                return self.session
+            self.close_session()
+        self.session = self.session_factory()
+        return self.session
 
-    def close(self):
+    def close_session(self):
+        if self.session:
+            self.session.close()
+
+    def destroy(self):
         if self.session_factory:
             self.session_factory.remove()
 
@@ -197,15 +219,6 @@ class DatabaseHandler(object):
 def init_database(dbh, models):
     from alembic.operations import Operations
     from alembic.migration import MigrationContext
-
-    # adjust alembic logging
-    logger = logging.getLogger('alembic')
-    if dbh.debug >= 5:
-        logger.setLevel(logging.DEBUG)
-    elif dbh.debug >= 4:
-        logger.setLevel(logging.INFO)
-    else:
-        logger.setLevel(logging.ERROR)
 
     err = ''
     try:
@@ -231,7 +244,7 @@ def init_database(dbh, models):
     except Exception:
         err = format_exc().strip()
     finally:
-        dbh.close()
+        dbh.destroy()
 
     if err:
         raise RuntimeError(err)
@@ -246,15 +259,15 @@ def interactive_db_config(backends=None, default=None):
         "Select db backend", backends or DB_BACKENDS, default=default)
 
     if cfg['backend'] == 'sqlite':
-        cfg['database'] = Input.get("Enter db path")
+        cfg['database'] = Input.get("Enter db path", required=True)
     else:
         default_port = 5432 if cfg['backend'] == 'pgsql' else 3306
-        cfg['database'] = Input.get("Enter db name")
+        cfg['database'] = Input.get("Enter db name", required=True)
         cfg['host'] = Input.get("Enter db host", default='localhost')
         cfg['port'] = Input.number("Enter db port", default=default_port)
-        cfg['username'] = Input.get("Enter db username")
-        cfg['password'] = Input.get("Enter db password", hidden=True)
-        Input.confirm("Confirm db password", cfg['password'], hidden=True)
+        cfg['username'] = Input.get("Enter db username", required=True)
+        cfg['password'] = Input.passwd("Enter db password", required=True)
+        Input.confirm_passwd("Confirm db password", cfg['password'])
 
     return cfg
 

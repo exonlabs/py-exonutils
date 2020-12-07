@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from traceback import format_exc
 
 import sqlalchemy as sa
-from exonutils.database import BaseModel, DatabaseHandler, \
+from exonutils.database import BaseModel, DatabaseHandler, init_db_logging, \
     init_database, interactive_db_config, interactive_db_setup
 
 logging.basicConfig(
@@ -17,22 +17,28 @@ class User(BaseModel):
     __tablename__ = 'users'
     __table_args__ = {'mysql_engine': 'InnoDB'}
 
-    name = sa.Column(sa.Unicode(32), nullable=False, unique=True)
-    email = sa.Column(sa.Unicode(256), nullable=False, default=u'')
+    name = sa.Column(sa.Unicode(32), nullable=False)
+    email = sa.Column(sa.Unicode(256), nullable=False, default='')
 
     @classmethod
     def initial_data(cls, dbs):
-        user = cls.find_one(dbs, name=u'foobar')
-        if not user:
-            cls.create(dbs, name=u'foobar')
+        users = cls.find(dbs, name=u'foobar')
+        if not users:
+            for i in range(10):
+                cls.create(
+                    dbs, name='foobar',
+                    email='foobar_%s@something.local' % i)
 
 
 if __name__ == '__main__':
     try:
         pr = ArgumentParser(prog=None)
-        pr.add_argument('-x', dest='debug', action='store_true',
-                        help='enable debug mode')
+        pr.add_argument(
+            '-x', dest='debug', action='count', default=0,
+            help='set debug modes')
         args = pr.parse_args()
+
+        init_db_logging(debug=args.debug)
 
         cfg = interactive_db_config(default='sqlite')
         print("DB config: %s" % cfg)
@@ -55,10 +61,11 @@ if __name__ == '__main__':
 
         # checking DB
         print("******************************")
-        print("Checking Models")
-        dbs = dbh.create_session()
-        res = User.find(dbs, name=u'foobar')
-        print(res)
+        print("Checking DB entries:")
+        with dbh as dbs:
+            users = User.find(dbs, name=u'foobar')
+        for usr in users:
+            print('User:  name=%s  email=%s' % (usr.name, usr.email))
         print("******************************")
 
     except Exception:
