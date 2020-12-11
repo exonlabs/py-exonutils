@@ -33,6 +33,9 @@ def init_db_logging(debug=0):
 @as_declarative()
 class BaseModel(object):
 
+    and_ = sa.and_
+    or_ = sa.or_
+
     guid = sa.Column(
         sa.String(32), primary_key=True, index=True, unique=True,
         autoincrement=False, nullable=False)
@@ -42,51 +45,58 @@ class BaseModel(object):
         return cls.__name__.lower()
 
     def __repr__(self):
-        attr = self.__mapper__.columns.keys()[1]
-        return "%s(%s=%s)" % (
-            self.__class__.__name__, attr, getattr(self, attr))
+        attrs = self.__mapper__.columns.keys()[1:]
+        return "%s(%s)" % (
+            self.__class__.__name__,
+            ', '.join(['%s=%s' % (a, getattr(self, a)) for a in attrs]))
 
     @classmethod
-    def default_order(cls):
+    def default_orders(cls):
         # Usage:
-        # return cls.COLUMN.asc()
-        return cls.__mapper__.columns.values()[1].asc()
+        # return (cls.COLUMN.asc(), ...)
+        return (cls.__mapper__.columns.values()[1].asc(),)
+
+    def modify(self, dbs, data, commit=True):
+        for attr, value in data.items():
+            if attr.key != 'guid':
+                setattr(self, attr.key, value)
+        dbs.add(self)
+        if commit:
+            dbs.commit()
+
+    def remove(self, dbs, commit=True):
+        dbs.delete(self)
+        if commit:
+            dbs.commit()
 
     @classmethod
-    def create(cls, dbs, _commit=True, **attrs):
+    def create(cls, dbs, data, commit=True):
         obj = cls()
         obj.guid = uuid.uuid5(uuid.uuid1(), uuid.uuid4().hex).hex
-        for attr, value in attrs.items():
-            if attr != 'guid' and attr in obj.__mapper__.columns.keys():
-                setattr(obj, attr, value)
+        for attr, value in data.items():
+            if attr.key != 'guid':
+                setattr(obj, attr.key, value)
         dbs.add(obj)
-        if _commit:
+        if commit:
             dbs.commit()
         return obj
 
-    def update(self, dbs, _commit=True, **attrs):
-        for attr, value in attrs.items():
-            if attr != 'guid' and attr in self.__mapper__.columns.keys():
-                setattr(self, attr, value)
-        dbs.add(self)
-        if _commit:
+    @classmethod
+    def update(cls, dbs, filters, data, commit=True):
+        q = dbs.query(cls)
+        if filters:
+            q = q.filter(*filters)
+        q.update(data, synchronize_session=False)
+        if commit:
             dbs.commit()
 
     @classmethod
-    def update_all(cls, dbs, _commit=True, **attrs):
-        dbs.query(cls).update(attrs)
-        if _commit:
-            dbs.commit()
-
-    def delete(self, dbs, _commit=True):
-        dbs.delete(self)
-        if _commit:
-            dbs.commit()
-
-    @classmethod
-    def delete_all(cls, dbs, _commit=True):
-        dbs.query(cls).delete(synchronize_session=False)
-        if _commit:
+    def delete(cls, dbs, filters, commit=True):
+        q = dbs.query(cls)
+        if filters:
+            q = q.filter(*filters)
+        q.delete(synchronize_session=False)
+        if commit:
             dbs.commit()
 
     @classmethod
@@ -94,21 +104,27 @@ class BaseModel(object):
         return dbs.query(cls).get(guid)
 
     @classmethod
-    def find(cls, dbs, _query=None, _order=None, _offset=0, _limit=-1, **attrs): # noqa
-        q = _query or dbs.query(cls).filter_by(**attrs)
-        _order = _order or cls.default_order()
-        if _order is not None:
-            q = q.order_by(_order)
-        return q.offset(_offset).limit(_limit).all() or []
+    def find(cls, dbs, filters, orders=None, offset=0, limit=-1):
+        q = dbs.query(cls)
+        if filters:
+            q = q.filter(*filters)
+        orders = orders or cls.default_orders()
+        if orders:
+            q = q.order_by(*orders)
+        return q.offset(offset).limit(limit).all() or []
 
     @classmethod
-    def find_one(cls, dbs, _query=None, **attrs):
-        q = _query or dbs.query(cls).filter_by(**attrs)
+    def find_one(cls, dbs, filters):
+        q = dbs.query(cls)
+        if filters:
+            q = q.filter(*filters)
         return q.one_or_none()
 
     @classmethod
-    def count(cls, dbs, _query=None, **attrs):
-        q = _query or dbs.query(cls).filter_by(**attrs)
+    def count(cls, dbs, filters):
+        q = dbs.query(cls)
+        if filters:
+            q = q.filter(*filters)
         return q.count()
 
     @classmethod
@@ -156,7 +172,7 @@ class DatabaseHandler(object):
         return self.create_session()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close_session()
+        pass
 
     def init_engine(self, pool=None, connect_timeout=0, query_timeout=0):
         backend = self.url.get_backend_name()
@@ -189,7 +205,7 @@ class DatabaseHandler(object):
                     poolclass=sa.pool.NullPool,
                     connect_args=connect_args)
 
-    def create_session(self, use_existing=False):
+    def create_session(self, use_existing=True):
         if not self.session_factory:
             # initialize engine
             if not self.engine:
@@ -251,23 +267,44 @@ def init_database(dbh, models):
     return True
 
 
-def interactive_db_config(backends=None, default=None):
+def interactive_db_config(backends=None, defaults={}):
     from .console import ConsoleInput as Input
+
+    default_backend = defaults.get('backend', None)
+    default_database = defaults.get('database', None)
+    default_host = defaults.get('host', 'localhost')
+    default_port = defaults.get('port', None)
+    default_username = defaults.get('username', None)
+    default_password = defaults.get('password', None)
 
     cfg = {}
     cfg['backend'] = Input.select(
-        "Select db backend", backends or DB_BACKENDS, default=default)
+        "Select db backend", backends or DB_BACKENDS,
+        default=default_backend, required=True)
 
     if cfg['backend'] == 'sqlite':
-        cfg['database'] = Input.get("Enter db path", required=True)
+        cfg['database'] = Input.get(
+            "Enter db path", default=default_database, required=True)
     else:
-        default_port = 5432 if cfg['backend'] == 'pgsql' else 3306
-        cfg['database'] = Input.get("Enter db name", required=True)
-        cfg['host'] = Input.get("Enter db host", default='localhost')
-        cfg['port'] = Input.number("Enter db port", default=default_port)
-        cfg['username'] = Input.get("Enter db username", required=True)
-        cfg['password'] = Input.passwd("Enter db password", required=True)
-        Input.confirm_passwd("Confirm db password", cfg['password'])
+        if not default_port:
+            if cfg['backend'] in ['pgsql']:
+                default_port = 5432
+            elif cfg['backend'] in ['mysql', 'mariadb']:
+                default_port = 3306
+
+        cfg['database'] = Input.get(
+            "Enter db name", default=default_database, required=True)
+        cfg['host'] = Input.get(
+            "Enter db host", default=default_host, required=True)
+        cfg['port'] = Input.number(
+            "Enter db port", default=default_port, required=True)
+        cfg['username'] = Input.get(
+            "Enter db username", default=default_username)
+        cfg['password'] = Input.passwd(
+            "Enter db password", default=default_password)
+        if cfg['password']:
+            Input.confirm_passwd(
+                "Confirm db password", cfg['password'])
 
     return cfg
 

@@ -22,13 +22,14 @@ class User(BaseModel):
 
     @classmethod
     def initial_data(cls, dbs):
-        users = cls.find(dbs, name=u'foobar')
-        if not users:
-            for i in range(10):
-                cls.create(
-                    dbs, name='foobar',
-                    email='foobar_%s@something.local' % i)
-
+        for i in range(5):
+            users = cls.find(dbs, (cls.name.like('foobar_%s_%%' % i),))
+            if not users:
+                for j in range(2):
+                    cls.create(dbs, {
+                        cls.name: 'foobar_%s_%s' % (i, j),
+                        cls.email: 'foobar_%s@domain_%s' % (i, j),
+                    })
 
 if __name__ == '__main__':
     try:
@@ -40,7 +41,10 @@ if __name__ == '__main__':
 
         init_db_logging(debug=args.debug)
 
-        cfg = interactive_db_config(default='sqlite')
+        cfg = interactive_db_config(defaults={
+            'backend': 'sqlite',
+            'database': '/tmp/test.db',
+        })
         print("DB config: %s" % cfg)
 
         dbh = DatabaseHandler(
@@ -60,14 +64,32 @@ if __name__ == '__main__':
         print("DB initialize: Done")
 
         # checking DB
-        print("******************************")
-        print("Checking DB entries:")
+        print("*" * 50)
+        print("All entries:")
         with dbh as dbs:
-            users = User.find(dbs, name=u'foobar')
-        for usr in users:
-            print('User:  name=%s  email=%s' % (usr.name, usr.email))
-        print("******************************")
+            for usr in User.find(dbs, None):
+                print(usr)
+        print("*" * 50)
+        print("Filter & modify entries:")
+        with dbh as dbs:
+            users = User.find(dbs, (User.or_(
+                User.name.like('foobar_2_%%'),
+                User.name.like('foobar_4_%%')),))
+        with dbh as dbs:
+            for usr in users:
+                print(usr)
+                usr.modify(dbs, {
+                    User.name: usr.name + '_#',
+                })
+        print("*" * 50)
+        print("All entries after modify:")
+        with dbh as dbs:
+            for usr in User.find(dbs, None):
+                print(usr)
+        print("*" * 50)
 
     except Exception:
         print(format_exc())
         sys.exit(1)
+    except KeyboardInterrupt:
+        print("\n-- terminated --")
