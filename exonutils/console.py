@@ -3,10 +3,14 @@
     :copyright: 2020, ExonLabs. All rights reserved.
     :license: BSD, see LICENSE for more details.
 """
-import sys
 import re
-from builtins import input
 from getpass import getpass
+try:
+    import readline
+    readline.set_completer_delims(' \t\n;')
+    readline.parse_and_bind("tab: complete")
+except:
+    pass
 try:
     import colorama
     colorama.init()
@@ -18,123 +22,121 @@ __all__ = ['ConsoleInput']
 
 class ConsoleInput(object):
 
-    input_caret = '>>'
+    prompt_caret = '>>'
 
     @classmethod
-    def _msg(cls, msg):
+    def _input(cls, msg, default='', hidden=False):
         if colorama:
             # print BOLD/BRIGHT text message
-            return "%s%s %s %s" % (
+            prompt = "%s%s %s %s" % (
                 colorama.Style.BRIGHT,
-                cls.input_caret,
+                cls.prompt_caret,
                 msg,
                 colorama.Style.RESET_ALL)
         else:
-            return "%s %s " % (cls.input_caret, msg)
+            prompt = "%s %s " % (cls.prompt_caret, msg)
+
+        result = (getpass(prompt) if hidden else input(prompt)).strip()
+        return result if result else default
 
     @classmethod
     def _err(cls, msg):
         if colorama:
             # print RED color error message
-            return "%s -- %s%s" % (
+            print("%s -- %s%s" % (
                 colorama.Fore.RED + colorama.Style.BRIGHT,
                 msg,
-                colorama.Style.RESET_ALL)
+                colorama.Style.RESET_ALL))
         else:
-            return " -- %s" % msg
+            print(" -- %s" % msg)
 
     @classmethod
-    def _input(cls, msg, hidden=False):
-        print(cls._msg(msg), end='')  # noqa
-        sys.stdout.flush()
-        if hidden:
-            return getpass(prompt='').strip()
-        else:
-            return input().strip()
+    def _validator(cls, input_str, regex=None):
+        if regex and not re.search(regex, input_str):
+            return "invalid input format"
+        return True
 
     @classmethod
-    def get(cls, msg, default=None, trials=3, hidden=False, regex=None,
-            validator_callback=None):
-        if default is None:
-            msg = "%s:" % msg
-        else:
-            default = str(default)
-            msg = "%s: [%s]" % (msg, default)
+    def get(cls, msg, default=None, required=False, trials=3, hidden=False,
+            regex=None, validator=None):
+        str_default = '' if default is None else str(default).strip()
+
+        msg = "%s:" % msg
+        if not required or str_default:
+            msg += " [%s]" % str_default
+
+        if not validator:
+            validator = cls._validator
 
         for i in range(max(1, trials)):
-            res = cls._input(msg, hidden=hidden)
-            if res:
-                if validator_callback and not validator_callback(res):
-                    continue
-                if regex and not re.search(regex, res):
-                    print(cls._err("invalid input format"))
-                    continue
-                return res
+            input_str = cls._input(msg, default=str_default, hidden=hidden)
+            if input_str:
+                chk = validator(input_str, regex=regex)
+                if chk is True:
+                    return input_str
+                cls._err(chk)
+            elif not required:
+                return None if default is None else str_default
             else:
-                if default is not None:
-                    return default
-                print(cls._err("empty input, please enter value"))
+                cls._err("required input, please enter value")
 
         raise ValueError("failed to get valid input")
 
     @classmethod
-    def confirm(cls, msg, value, trials=3, hidden=False):
+    def passwd(cls, *args, **kwargs):
+        kwargs.update({'hidden': True})
+        return cls.get(*args, **kwargs)
+
+    @classmethod
+    def confirm_passwd(cls, msg, value, trials=3):
         for i in range(max(1, trials)):
-            res = cls._input("%s:" % msg, hidden=hidden)
-            try:
-                if (type(value) is int and int(res) == value) or \
-                   (type(value) is float and float(res) == value) or \
-                   (type(value) is bool and bool(res) == value) or \
-                   res == value:
+            res = cls._input("%s:" % msg, hidden=True)
+            if res:
+                if res == str(value):
                     return True
-            except Exception:
-                pass
-            print(cls._err("not matching value, please try again"))
+                cls._err("value not matching, please try again")
+            else:
+                cls._err("empty input, please confirm value")
 
-        raise ValueError("failed to confirm input value")
+        raise ValueError("failed to confirm value")
 
     @classmethod
-    def number(cls, msg, default=None, trials=3, vmin=None, vmax=None):
-        def validator(res):
-            if not re.search('^[0-9-]+$', res):
-                print(cls._err("invalid number format"))
-                return False
-
-            num = int(res)
-            if (vmin is not None and num < int(vmin)) or \
-               (vmax is not None and num > int(vmax)):
-                print(cls._err("value out of range, %s <= n <= %s"
-                      % (vmin, vmax)))
-                return False
-
+    def number(cls, msg, default=None, required=False, trials=3,
+               vmin=None, vmax=None):
+        def validator(input_str, regex=None):
+            if not re.search('^[0-9-]+$', input_str):
+                return "invalid number format"
+            num = int(input_str)
+            if (vmin is not None and (int(vmin) - num) > 0) or \
+               (vmax is not None and (int(vmax) - num) < 0):
+                return "value out of range"
             return True
 
-        res = cls.get(msg, default=default, trials=trials,
-                      validator_callback=validator)
-        return int(res) if res else default
+        res = cls.get(
+            msg, default=default, required=required, trials=trials,
+            validator=validator)
+        return int(res) if res is not None else None
 
     @classmethod
-    def decimal(cls, msg, default=None, trials=3, vmin=None, vmax=None):
-        def validator(res):
-            if not re.search('^[0-9-]+(.[0-9]+)?$', res):
-                print(cls._err("invalid decimal format"))
-                return False
-
-            num = float(res)
-            if (vmin is not None and num < float(vmin)) or \
-               (vmax is not None and num > float(vmax)):
-                print(cls._err("value out of range, %s <= n <= %s"
-                      % (vmin, vmax)))
-                return False
-
+    def decimal(cls, msg, default=None, required=False, trials=3,
+                vmin=None, vmax=None):
+        def validator(input_str, regex=None):
+            if not re.search('^[0-9-]+(.[0-9]+)?$', input_str):
+                return "invalid decimal format"
+            num = float(input_str)
+            if (vmin is not None and (float(vmin) - num) > 0) or \
+               (vmax is not None and (float(vmax) - num) < 0):
+                return "value out of range"
             return True
 
-        res = cls.get(msg, default=default, trials=trials,
-                      validator_callback=validator)
-        return float(res) if res else default
+        res = cls.get(
+            msg, default=default, required=required, trials=trials,
+            validator=validator)
+        return float(res) if res is not None else None
 
     @classmethod
-    def select(cls, msg, values, default=None, trials=3, case_sensitive=False):
+    def select(cls, msg, values, default=None, required=False, trials=3,
+               case_sensitive=False):
         if case_sensitive:
             values = [str(s) for s in values]
             if default is not None:
@@ -144,28 +146,24 @@ class ConsoleInput(object):
             if default is not None:
                 default = str(default).lower()
 
-        if default in values:
-            msg = "%s [%s]: [%s]" % (msg, '|'.join(values), default)
-        else:
-            msg = "%s [%s]:" % (msg, '|'.join(values))
+        msg = "%s {%s}" % (msg, '|'.join(values))
+        if default not in values:
+            default = None
 
-        for i in range(max(1, trials)):
-            res = cls._input(msg)
-            if res:
-                if not case_sensitive:
-                    res = res.lower()
-                if res in values:
-                    return res
-                print(cls._err("invalid value"))
-            else:
-                if default is not None:
-                    return default
-                print(cls._err("empty input, please select value"))
+        def validator(input_str, regex=None):
+            if not case_sensitive:
+                input_str = input_str.lower()
+            if input_str not in values:
+                return "invalid value, please select from list"
+            return True
 
-        raise ValueError("failed to get valid input")
+        return cls.get(
+            msg, default=default, required=required, trials=trials,
+            validator=validator)
 
     @classmethod
-    def yesno(cls, msg, default=None, trials=3):
+    def yesno(cls, msg, default=None, required=False, trials=3):
         res = cls.select(
-            msg, values=['y', 'n'], default=default, trials=trials)
+            msg, ['y', 'n'], default=default, required=required,
+            trials=trials, case_sensitive=False)
         return bool(res == 'y')
