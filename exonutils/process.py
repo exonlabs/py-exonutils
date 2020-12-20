@@ -52,7 +52,7 @@ class BaseProcess(object):
                 self.execute()
             except Exception:
                 self.log.error(format_exc().strip())
-            except KeyboardInterrupt:
+            except (KeyboardInterrupt, SystemExit):
                 break
 
         self.term_event.clear()
