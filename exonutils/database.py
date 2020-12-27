@@ -309,9 +309,9 @@ def interactive_db_config(backends=None, defaults={}):
     return cfg
 
 
-def interactive_db_setup(cfg=None, quiet=False):
+def interactive_db_setup(cfg=None, defaults={}, quiet=False):
     if not cfg:
-        cfg = interactive_db_config()
+        cfg = interactive_db_config(defaults=defaults)
 
     backend = cfg.get('backend', '')
     if backend not in DB_BACKENDS:

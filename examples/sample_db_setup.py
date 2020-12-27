@@ -9,8 +9,10 @@ from exonutils.database import BaseModel, DatabaseHandler, init_db_logging, \
     init_database, interactive_db_config, interactive_db_setup
 
 logging.basicConfig(
-    level=logging.DEBUG, stream=sys.stdout,
-    format='%(asctime)s [%(name)s] %(levelname)s %(message)s')
+    level=logging.INFO, stream=sys.stdout,
+    format='%(asctime)s %(levelname)-5.5s [%(name)s] %(message)s')
+logging.addLevelName(logging.WARNING, "WARN")
+logging.addLevelName(logging.CRITICAL, "FATAL")
 
 
 class User(BaseModel):
