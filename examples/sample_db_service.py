@@ -7,6 +7,7 @@ from traceback import format_exc
 import sqlalchemy as sa
 from exonutils.database import BaseModel, DatabaseHandler, init_db_logging, \
     init_database, interactive_db_config, interactive_db_setup
+from exonutils.service import BaseService, BaseServiceTask
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
@@ -14,13 +15,15 @@ logging.basicConfig(
 logging.addLevelName(logging.WARNING, "WARN")
 logging.addLevelName(logging.CRITICAL, "FATAL")
 
+dbh = None
+
 
 class User(BaseModel):
     __tablename__ = 'users'
     __table_args__ = {'mysql_engine': 'InnoDB'}
 
     name = sa.Column(sa.Unicode(32), nullable=False)
-    email = sa.Column(sa.Unicode(256), nullable=False, default='')
+    email = sa.Column(sa.Unicode(128), nullable=False, default='')
     count = sa.Column(sa.Integer, nullable=False, default=0)
 
     @classmethod
@@ -35,7 +38,52 @@ class User(BaseModel):
                         'count': 0,
                     })
 
+
+class Task1(BaseServiceTask):
+
+    def initialize(self):
+        self.log.info("initializing")
+
+    def execute(self):
+        with dbh.session_context() as dbs:
+            users = User.find(dbs, None)[:2]
+
+        with dbh.session_context() as dbs:
+            for usr in users:
+                usr.modify(dbs, {
+                    'name': usr.name + '_#',
+                })
+            User.update(dbs, None, {
+                'count': User.count + 1,
+            })
+
+        self.sleep(3)
+
+    def terminate(self):
+        self.log.info("terminating")
+
+
+class Task2(BaseServiceTask):
+
+    def initialize(self):
+        self.log.info("initializing")
+
+    def execute(self):
+        print("*" * 50)
+        print("All entries:")
+        with dbh.session_context() as dbs:
+            for usr in User.find(dbs, None):
+                print(usr)
+        print("*" * 50)
+        self.sleep(2)
+
+    def terminate(self):
+        self.log.info("terminating")
+
+
 if __name__ == '__main__':
+    log = logging.getLogger()
+    log.name = 'main'
     try:
         pr = ArgumentParser(prog=None)
         pr.add_argument(
@@ -67,32 +115,9 @@ if __name__ == '__main__':
         init_database(dbh, models)
         print("DB initialize: Done")
 
-        # checking DB
-        print("*" * 50)
-        print("All entries:")
-        with dbh.session_context() as dbs:
-            for usr in User.find(dbs, None):
-                print(usr)
-        print("*" * 50)
-
-        print("Filter & modify entries:")
-        with dbh.session_context() as dbs:
-            users = User.find(dbs, (User.or_(
-                User.name.like('foobar_2_%%'),
-                User.name.like('foobar_4_%%')),))
-        with dbh.session_context() as dbs:
-            for usr in users:
-                print(usr)
-                usr.modify(dbs, {
-                    'name': usr.name + '_#',
-                })
-
-        print("*" * 50)
-        print("All entries after modify:")
-        with dbh.session_context() as dbs:
-            for usr in User.find(dbs, None):
-                print(usr)
-        print("*" * 50)
+        srv = BaseService('SampleDBService', logger=log, debug=args.debug)
+        srv.tasks = [Task1, Task2]
+        srv.start()
 
     except Exception:
         print(format_exc())

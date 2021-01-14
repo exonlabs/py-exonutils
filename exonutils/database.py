@@ -58,8 +58,8 @@ class BaseModel(object):
 
     def modify(self, dbs, data, commit=True):
         for attr, value in data.items():
-            if attr.key != 'guid':
-                setattr(self, attr.key, value)
+            if attr != 'guid':
+                setattr(self, attr, value)
         dbs.add(self)
         if commit:
             dbs.commit()
@@ -74,8 +74,8 @@ class BaseModel(object):
         obj = cls()
         obj.guid = uuid.uuid5(uuid.uuid1(), uuid.uuid4().hex).hex
         for attr, value in data.items():
-            if attr.key != 'guid':
-                setattr(obj, attr.key, value)
+            if attr != 'guid':
+                setattr(obj, attr, value)
         dbs.add(obj)
         if commit:
             dbs.commit()
@@ -140,6 +140,21 @@ class BaseModel(object):
         pass
 
 
+class DatabaseSessionContext(object):
+
+    def __init__(self, session_factory):
+        self._factory = session_factory
+        self._session = None
+
+    def __enter__(self):
+        self._session = self._factory()
+        return self._session
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._session:
+            self._session.close()
+
+
 class DatabaseHandler(object):
 
     def __init__(self, backend, database, host=None, port=None,
@@ -152,7 +167,6 @@ class DatabaseHandler(object):
         self.debug = debug
         self.engine = None
         self.session_factory = None
-        self.session = None
 
         if backend == 'sqlite':
             driver = 'sqlite'
@@ -167,12 +181,6 @@ class DatabaseHandler(object):
         self.url = sa.engine.url.URL(
             driver, database=database, host=host, port=port,
             username=username, password=password, query=query)
-
-    def __enter__(self):
-        return self.create_session()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
 
     def init_engine(self, pool=None, connect_timeout=0, query_timeout=0):
         backend = self.url.get_backend_name()
@@ -205,27 +213,28 @@ class DatabaseHandler(object):
                     poolclass=sa.pool.NullPool,
                     connect_args=connect_args)
 
-    def create_session(self, use_existing=True):
+    def init_session_factory(self):
+        # initialize engine
+        if not self.engine:
+            self.init_engine()
+
+        # create session factory
+        self.session_factory = sa.orm.scoped_session(
+            sa.orm.sessionmaker(bind=self.engine))
+
+    def create_session(self):
+        # initialize session factory
         if not self.session_factory:
-            # initialize engine
-            if not self.engine:
-                self.init_engine()
+            self.init_session_factory()
 
-            # create session factory
-            self.session_factory = sa.orm.scoped_session(
-                sa.orm.sessionmaker(bind=self.engine))
+        return self.session_factory()
 
-        # create session
-        if self.session:
-            if use_existing:
-                return self.session
-            self.close_session()
-        self.session = self.session_factory()
-        return self.session
+    def session_context(self):
+        # initialize session factory
+        if not self.session_factory:
+            self.init_session_factory()
 
-    def close_session(self):
-        if self.session:
-            self.session.close()
+        return DatabaseSessionContext(self.session_factory)
 
     def destroy(self):
         if self.session_factory:
