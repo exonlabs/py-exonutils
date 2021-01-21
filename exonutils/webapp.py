@@ -92,7 +92,7 @@ class BaseWebApp(object):
 
         # load webapp views
         for V in self.views:
-            V.initialize(self, app)
+            V._initialize(self, app)
             for url, endpoint in V.routes:
                 app.add_url_rule(url, view_func=V.as_view(endpoint, self))
 
@@ -131,6 +131,10 @@ class BaseWebView(MethodView):
 
         # debug level
         self.debug = webapp.debug
+
+    @classmethod
+    def _initialize(cls, webapp, app):
+        return cls.initialize(webapp, app)
 
     @classmethod
     def initialize(cls, webapp, app):
