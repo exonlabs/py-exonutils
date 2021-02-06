@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-    :copyright: 2020, ExonLabs. All rights reserved.
+    :copyright: 2021, ExonLabs. All rights reserved.
     :license: BSD, see LICENSE for more details.
 """
+
 __all__ = []
 
 
