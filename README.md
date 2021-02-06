@@ -1,6 +1,6 @@
 # ExonUtils #
 
-Common and base utilities for applications.
+General utilities and helpers for applications.
 
 
 ## Installing ##

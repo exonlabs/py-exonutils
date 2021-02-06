@@ -2,41 +2,35 @@
 cd $(dirname $(readlink -f $0))/..
 
 PKGNAME=$(grep 'pkgname = "' setup.py |head -n 1 |cut -d'"' -f2 |xargs)
-VERSION=$(grep '__version__ = "' ${PKGNAME}/__init__.py |head -n 1 |cut -d'"' -f2 |xargs |sed 's/\.dev0.*//g')
+VERSION=$(grep '__version__ = "' ${PKGNAME}/__init__.py |head -n 1 |cut -d'"' -f2 |xargs |sed 's|\.dev.*||g')
 
+RELEASE_TAG=${VERSION}
 
-echo -e "\n* Releasing new version: ${VERSION}"
-
-# check clean repo
-git diff --quiet || { echo -e "\n-- Error!! uncommitted changes in repo.\n"; exit 1; }
+echo -e "\n* Releasing: ${RELEASE_TAG}"
 
 # check previous versions tags
-git tag |grep -q "${VERSION}" && { echo -e "\n-- Error!! release tag ${VERSION} already exist in repo.\n"; exit 1; }
+git tag |grep -q "${RELEASE_TAG}" && {
+    echo -e "\n-- Error!! release tag [${RELEASE_TAG}] already exist.\n";
+    exit 1;
+}
 
-# checkout to latest commit
-echo -e "\n- checking-out repo to master branch ..."
-git checkout master
-echo -e "\n- setting new release version ..."
-sed -i "s/^__version__ = \".*/__version__ = \"${VERSION}\"/g" ${PKGNAME}/__init__.py
-git commit -am "Release version '${VERSION}'"
-git tag ${VERSION} || { echo -e "\n-- Error!! failed adding release tag in repo.\n"; exit 1; }
+# adjust version and release
+sed -i "s|^__version__ = \".*|__version__ = \"${VERSION}\"|g" ${PKGNAME}/__init__.py
+git commit -m "Release version '${VERSION}'" ${PKGNAME}/__init__.py
+git tag "${RELEASE_TAG}" || {
+    echo -e "\n-- Error!! failed adding release tag [${RELEASE_TAG}]\n";
+    exit 1;
+}
 
-# building
-./scripts/build.sh || { echo -e "\n-- Error!! failed building packages.\n"; exit 1; }
+# bump new version
+NEW_VER=$(echo "${VERSION}" |awk -F. '{for(i=1;i<NF;i++){printf $i"."}{printf $NF+1".dev"}}')
+sed -i "s|^__version__ = \".*|__version__ = \"${NEW_VER}\"|g" ${PKGNAME}/__init__.py
+git commit -m "Bump version to '${NEW_VER}'" ${PKGNAME}/__init__.py
 
-# bump version minor
-echo -e "- setting new dev version ..."
-NEWREL=$(echo "${VERSION}" |awk -F. '{for(i=1;i<NF;i++){printf $i"."}{printf $NF+1".dev0"}}')
-sed -i "s/^__version__ = \".*/__version__ = \"${NEWREL}\"/g" ${PKGNAME}/__init__.py
-git commit -am "Bump version to '${NEWREL}'"
+# building release packages
+./scripts/build.sh ${VERSION} || {
+    echo -e "\n-- Error!! failed building new release packages.\n";
+    exit 1;
+}
 
-# install latest dev after version bump
-echo -e "\n- install latest dev version ..."
-PYTHON=$(head -n 1 PYTHON |xargs)
-SETUPENV_PATH=../venv_$PYTHON
-. ${SETUPENV_PATH}/bin/activate
-[ -z "${VIRTUAL_ENV}" ] && { echo -e "\n-- Error!! failed to activate $PYTHON virtualenv.\n"; exit 1; }
-pip install -e ./
-deactivate
-
-echo -e "\n* Release Done: ${PKGNAME} ${VERSION}\n"
+echo -e "* Released: ${PKGNAME} ${VERSION}\n"

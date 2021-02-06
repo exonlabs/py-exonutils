@@ -1,4 +1,5 @@
-.PHONY: clean clean-dist clean-dev clean-all setup-dev build release
+.PHONY: clean clean-dist clean-dev clean-all \
+	setup-dev build release
 
 
 clean:
@@ -22,3 +23,6 @@ build: clean
 
 release: clean
 	@bash scripts/release.sh
+
+pip-update:
+	pip install -U pip $$(pip freeze |grep -v '-e ' |cut -d'=' -f1 |xargs)
