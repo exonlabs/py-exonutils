@@ -74,7 +74,7 @@ if __name__ == '__main__':
         if args.debug > 0:
             log.setLevel(logging.DEBUG)
 
-        srv = BaseService('SampleService', logger=log, debug=args.debug)
+        srv = BaseService(None, logger=log, debug=args.debug)
         srv.tasks = [Task1, Task2]
         srv.start()
 

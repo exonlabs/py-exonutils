@@ -7,19 +7,21 @@ import threading
 import logging
 from traceback import format_exc
 
-from .process import BaseProcess
+from .daemon import BaseDaemon
 
 __all__ = ['BaseService', 'BaseServiceTask']
 
 
-class BaseService(BaseProcess):
+class BaseService(BaseDaemon):
 
     # interval in sec to check for tasks
-    tasks_check_interval = 5
+    check_interval = 5
 
     def __init__(self, name, logger=None, debug=0):
-        _logger = logger if logger else logging.getLogger(__name__)
-        super(BaseService, self).__init__(name, logger=_logger, debug=debug)
+        if not logger:
+            logger = logging.getLogger(__name__)
+        super(BaseService, self).__init__(
+            name, logger=logger, debug=debug)
 
         # service tasks list
         self.tasks = []
@@ -61,17 +63,21 @@ class BaseService(BaseProcess):
                 self.log.error(format_exc().strip())
 
         # checking threads interval
-        self.sleep(self.tasks_check_interval)
+        self.sleep(self.check_interval)
 
     def terminate(self):
-        self.log.info("stopping all tasks")
-        for t in self._threads.values():
-            t.stop()
+        try:
+            self.log.info("stopping all tasks")
+            for t in self._threads.values():
+                t.stop()
 
-        self.log.debug("wait all tasks exit")
-        for t in self._threads.values():
-            if t.is_alive():
-                t.join()
+            self.log.debug("wait all tasks exit")
+            for t in self._threads.values():
+                if t.is_alive():
+                    t.join()
+
+        except Exception:
+            self.log.error(format_exc().strip())
 
         self.log.info("exit")
 
@@ -79,7 +85,8 @@ class BaseService(BaseProcess):
 class BaseServiceTask(threading.Thread):
 
     def __init__(self, service):
-        super(BaseServiceTask, self).__init__(name=self.__class__.__name__)
+        super(BaseServiceTask, self).__init__(
+            name=self.__class__.__name__)
 
         # task logger
         self.log = logging.getLogger(self.name)
@@ -108,12 +115,7 @@ class BaseServiceTask(threading.Thread):
 
         # run task forever
         while not self.term_event.is_set():
-            try:
-                self.execute()
-            except Exception:
-                self.log.error(format_exc().strip())
-            except (KeyboardInterrupt, SystemExit):
-                break
+            self.execute()
 
         self.term_event.clear()
 
