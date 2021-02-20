@@ -3,25 +3,27 @@
     :copyright: 2021, ExonLabs. All rights reserved.
     :license: BSD, see LICENSE for more details.
 """
-import sys
 import signal
 import threading
 import logging
-from traceback import format_exc
 
-__all__ = ['BaseProcess']
+__all__ = ['BaseDaemon']
 
 
-class BaseProcess(object):
+class BaseDaemon(object):
 
     # signals to be handled by process
     signals = ['SIGINT', 'SIGTERM', 'SIGQUIT',
                'SIGHUP', 'SIGUSR1', 'SIGUSR2']
 
     def __init__(self, name, logger=None, debug=0):
-        # process name
-        self.name = name
-        # process title to show in process table
+        # daemon name
+        if name:
+            self.name = name
+        else:
+            self.name = self.__class__.__name__.lower()
+
+        # daemon process title to show in os process table
         self.proctitle = self.name
 
         # terminate event
@@ -48,12 +50,7 @@ class BaseProcess(object):
 
         # run process forever
         while not self.term_event.is_set():
-            try:
-                self.execute()
-            except Exception:
-                self.log.error(format_exc().strip())
-            except (KeyboardInterrupt, SystemExit):
-                break
+            self.execute()
 
         self.term_event.clear()
 
@@ -61,29 +58,22 @@ class BaseProcess(object):
         self.terminate()
 
     def start(self):
-        try:
-            # set process title
-            if self.proctitle:
-                try:
-                    from setproctitle import setproctitle
-                    setproctitle(str(self.proctitle).strip())
-                except ImportError:
-                    self.log.debug(
-                        "ignoring setproctitle - package not installed")
+        # set signal handlers
+        for s in self.signals:
+            if hasattr(signal, s):
+                signal.signal(getattr(signal, s), self.signal)
 
-            # set process signal handler
-            for s in self.signals:
-                if hasattr(signal, s):
-                    signal.signal(getattr(signal, s), self.signal)
+        # set process title
+        if self.proctitle:
+            try:
+                from setproctitle import setproctitle
+                setproctitle(str(self.proctitle).strip().lower())
+            except ImportError:
+                self.log.debug(
+                    "can't set proctitle - [setproctitle] not installed")
 
-            # run process
-            self.run()
-
-        except Exception:
-            self.log.error(format_exc().strip())
-            sys.exit(1)
-
-        sys.exit(0)
+        # run process
+        self.run()
 
     def stop(self):
         self.term_event.set()
@@ -104,8 +94,7 @@ class BaseProcess(object):
             self.log.info("-- received %s --" % signame)
             handler()
         else:
-            self.log.info(
-                "-- received %s -- (no handler defined)" % signame)
+            self.log.debug("-- received %s -- (ignoring)" % signame)
 
     def handle_sigint(self):
         self.stop()
@@ -114,7 +103,4 @@ class BaseProcess(object):
         self.stop()
 
     def handle_sigquit(self):
-        self.stop()
-
-    def handle_sighup(self):
         self.stop()

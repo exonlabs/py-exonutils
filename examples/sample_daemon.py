@@ -4,7 +4,7 @@ import logging
 from argparse import ArgumentParser
 from traceback import format_exc
 
-from exonutils.process import BaseProcess
+from exonutils.daemon import BaseDaemon
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
@@ -13,18 +13,21 @@ logging.addLevelName(logging.WARNING, "WARN")
 logging.addLevelName(logging.CRITICAL, "FATAL")
 
 
-class SampleProcess(BaseProcess):
+class SampleDaemon(BaseDaemon):
 
     def initialize(self):
         self.log.info("Initializing")
         self.counter = 0
 
     def execute(self):
-        self.counter += 1
-        self.log.debug("Running: %s ..." % self.counter)
-        if self.counter >= 10:
-            self.log.info("exit process after count = %s" % self.counter)
-            self.stop()
+        try:
+            self.counter += 1
+            self.log.debug("Running: %s ..." % self.counter)
+            if self.counter >= 50:
+                self.log.info("exit process after count = %s" % self.counter)
+                self.stop()
+        except Exception:
+            self.log.fatal(format_exc())
         self.sleep(2)
 
     def terminate(self):
@@ -56,7 +59,7 @@ if __name__ == '__main__':
         if args.debug > 0:
             log.setLevel(logging.DEBUG)
 
-        p = SampleProcess('SampleProcess', logger=log, debug=args.debug)
+        p = SampleDaemon(None, logger=log, debug=args.debug)
         p.start()
 
     except Exception:
