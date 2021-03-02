@@ -4,6 +4,8 @@
     :license: BSD, see LICENSE for more details.
 """
 import re
+import copy
+import uuid
 import logging
 import sqlite3
 
@@ -24,13 +26,28 @@ def init_db_logging(debug=0):
 
 class BaseModel(object):
     __tablename__ = None
-    __columns__ = []
+    __columns__ = ()
+    __create__ = ""
 
     def __init__(self, data):
-        self.__data__ = data
+        self.__data__ = {}
+        for k in self.__columns__:
+            try:
+                self.__data__[k] = copy.deepcopy(data[k])
+            except:
+                pass
 
     def __getattr__(self, attr):
-        return self.__data__[attr]
+        if attr in self.__columns__:
+            return self.__data__[attr]
+        else:
+            return super(BaseModel, self).__getattr__(attr)
+
+    def __setattr__(self, attr, value):
+        if attr in self.__columns__:
+            self.__data__[attr] = value
+        else:
+            super(BaseModel, self).__setattr__(attr, value)
 
     def __repr__(self):
         attrs = self.__columns__[1:]
@@ -43,6 +60,15 @@ class BaseModel(object):
         if len(cls.__columns__) >= 2:
             return '%s ASC' % cls.__columns__[1]
         return None
+
+    @classmethod
+    def create(cls, dbs, data, commit=True):
+        obj = cls(data)
+        obj.guid = uuid.uuid5(uuid.uuid1(), uuid.uuid4().hex).hex
+        dbs.query(cls).insert(obj.__data__)
+        if commit:
+            dbs.commit()
+        return obj
 
     @classmethod
     def get(cls, dbs, guid):
@@ -87,7 +113,7 @@ class _Query(object):
 
     def __init__(self, dbs, model):
         self.dbs = dbs
-        self.model = model
+        self.Model = model
 
         self._filters = None
         self._filterparams = None
@@ -129,38 +155,40 @@ class _Query(object):
         return self
 
     def all(self):
-        q = "SELECT * FROM %s" % self.model.__tablename__
+        q = "SELECT * FROM %s" % self.Model.__tablename__
         if self._filters:
             q += "\nWHERE %s" % self._filters
         if self._groupby:
             q += "\nGROUP BY %s" % self._groupby
         if self._orderby:
-            q += '\nORDER BY %s' % self._orderby
+            q += "\nORDER BY %s" % self._orderby
         if self._limit:
-            q += '\nLIMIT %s' % self._limit
+            q += "\nLIMIT %s" % self._limit
         if self._offset:
-            q += '\nOFFSET %s' % self._offset
+            q += "\nOFFSET %s" % self._offset
         q += ";"
 
-        res = self.dbs.run(q, params=self._filterparams)
+        self.dbs.execute(q, params=self._filterparams)
+        res = self.dbs.fetchall()
         if res:
-            return [self.model(d) for d in res]
+            return [self.Model(d) for d in res]
 
         return None
 
     def first(self):
-        q = "SELECT * FROM %s" % self.model.__tablename__
+        q = "SELECT * FROM %s" % self.Model.__tablename__
         if self._filters:
             q += "\nWHERE %s" % self._filters
         if self._groupby:
             q += "\nGROUP BY %s" % self._groupby
         if self._orderby:
-            q += '\nORDER BY %s' % self._orderby
-        q += '\nLIMIT 1;'
+            q += "\nORDER BY %s" % self._orderby
+        q += "\nLIMIT 1;"
 
-        res = self.dbs.run(q, params=self._filterparams)
+        self.dbs.execute(q, params=self._filterparams)
+        res = self.dbs.fetchall()
         if res:
-            return self.model(res[0])
+            return self.Model(res[0])
 
         return None
 
@@ -172,36 +200,48 @@ class _Query(object):
         raise RuntimeError("no results found")
 
     def one_or_none(self):
-        q = "SELECT * FROM %s" % self.model.__tablename__
+        q = "SELECT * FROM %s" % self.Model.__tablename__
         if self._filters:
             q += "\nWHERE %s" % self._filters
         if self._groupby:
             q += "\nGROUP BY %s" % self._groupby
         if self._orderby:
-            q += '\nORDER BY %s' % self._orderby
-        q += '\nLIMIT 10;'
+            q += "\nORDER BY %s" % self._orderby
+        q += "\nLIMIT 2;"
 
-        res = self.dbs.run(q, params=self._filterparams)
+        self.dbs.execute(q, params=self._filterparams)
+        res = self.dbs.fetchall()
         if res:
             if len(res) > 1:
                 raise RuntimeError("multiple entries found")
-            return self.model(res[0])
+            return self.Model(res[0])
 
         return None
 
     def count(self):
-        q = "SELECT count(*) as count FROM %s" % self.model.__tablename__
+        q = "SELECT count(*) as count FROM %s" % self.Model.__tablename__
         if self._filters:
             q += "\nWHERE %s" % self._filters
         if self._groupby:
             q += "\nGROUP BY %s" % self._groupby
         q += ";"
 
-        res = self.dbs.run(q, params=self._filterparams)
+        self.dbs.execute(q, params=self._filterparams)
+        res = self.dbs.fetchall()
         if res:
             return res[0]['count']
 
         return 0
+
+    def insert(self, data):
+        q = "INSERT INTO %s" % self.Model.__tablename__
+        q += "\n(%s)" % ', '.join([
+            k for k in self.Model.__columns__])
+        q += "\nVALUES\n(%s)" % ', '.join([
+            ':%s' % k for k in self.Model.__columns__])
+        q += ";"
+
+        return self.dbs.execute(q, params=data)
 
 
 class _Session(object):
@@ -213,6 +253,9 @@ class _Session(object):
         self.database = database
         self.connection = None
         self.cursor = None
+
+    def query(self, model):
+        return _Query(self, model)
 
     def connect(self):
         global _logger
@@ -231,29 +274,70 @@ class _Session(object):
             self.connection.close()
         self.connection = None
 
-    def query(self, model):
-        return _Query(self, model)
-
-    def run(self, sql, params=None):
+    def execute(self, sql, params=None):
         global _logger
-
-        if not self.connection:
-            self.connect()
 
         # clean extra newlines with spaces
         sql = re.sub('\n\\s+', '\n', sql).strip()
         _logger.info("SQL:\n%s\nPARAMS: %s" % (sql, params))
 
+        if not self.connection:
+            self.connect()
         self.cursor = self.connection.cursor()
         if params:
             self.cursor.execute(sql, params)
         else:
             self.cursor.execute(sql)
-        if sql.strip()[:6].upper() == 'SELECT':
+        return True
+
+    def executescript(self, sql_script):
+        global _logger
+
+        # clean extra newlines with spaces
+        sql_script = re.sub('\n\\s+', '\n', sql_script).strip()
+        _logger.info("SQL-SCRIPT:\n%s" % sql_script)
+
+        if not self.connection:
+            self.connect()
+        self.cursor = self.connection.cursor()
+        self.cursor.execute(sql_script)
+        return True
+
+    def fetchone(self):
+        if self.cursor:
+            return self.cursor.fetchone()
+        return None
+
+    def fetchall(self):
+        if self.cursor:
             return self.cursor.fetchall()
-        else:
-            self.cursor.connection.commit()
+        return None
+
+    def rowcount(self):
+        if self.cursor:
+            return self.cursor.rowcount
+        return None
+
+    def lastrowid(self):
+        if self.cursor:
+            return self.cursor.lastrowid
+        return None
+
+    def commit(self):
+        global _logger
+        if self.connection:
+            _logger.debug("connection commit [%s]" % self.database)
+            self.connection.commit()
             return True
+        return False
+
+    def rollback(self):
+        global _logger
+        if self.connection:
+            _logger.debug("connection rollback [%s]" % self.database)
+            self.connection.rollback()
+            return True
+        return False
 
 
 class DatabaseHandler(object):
@@ -281,19 +365,17 @@ class DatabaseHandler(object):
 
 def init_database(dbh, models):
     with dbh as dbs:
-        pass
+        # create database structure
+        for Model in models:
+            dbs.executescript(Model.__create__)
 
-        # # create database structure
-        # for Model in models:
-        #     Model.create_table(dbh)
+        # execute migrations
+        for Model in models:
+            Model.migrate(dbs)
 
-        # # execute migrations
-        # for Model in models:
-        #     Model.migrate(dbh)
-
-        # # load initial models data
-        # for Model in models:
-        #     Model.initial_data(dbh)
+        # load initial models data
+        for Model in models:
+            Model.initial_data(dbs)
 
     return True
 

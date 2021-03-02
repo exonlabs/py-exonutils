@@ -15,33 +15,27 @@ logging.addLevelName(logging.CRITICAL, "FATAL")
 
 class User(sql.BaseModel):
     __tablename__ = 'users'
-
     __columns__ = ['guid', 'name', 'email', 'age']
-
-    # __metadata__ = {
-    #     'create_table': '''
-    #         CREATE TABLE users IF NOT EXISTS (
-    #             guid TEXT PRIMARY KEY NOT NULL,
-    #             name TEXT NOT NULL DEFAULT '',
-    #             email TEXT NOT NULL DEFAULT '',
-    #             age INTEGER NOT NULL DEFAULT 0
-    #         ) WITHOUT ROWID;''',
-    # }
+    __create__ = """
+        CREATE TABLE IF NOT EXISTS users (
+            guid TEXT PRIMARY KEY NOT NULL,
+            name TEXT NOT NULL DEFAULT '',
+            email TEXT NOT NULL DEFAULT '',
+            age INTEGER NOT NULL DEFAULT 0
+        ) WITHOUT ROWID;
+    """
 
     @classmethod
     def initial_data(cls, dbs):
-        pass
-
-    # @classmethod
-    # def initial_data(cls, dbs):
-    #     for i in range(5):
-    #         users = cls.find(dbs, (cls.name.like('foobar_%s_%%' % i),))
-    #         if not users:
-    #             for j in range(2):
-    #                 cls.create(dbs, {
-    #                     cls.name: 'foobar_%s_%s' % (i, j),
-    #                     cls.email: 'foobar_%s@domain_%s' % (i, j),
-    #                 })
+        for i in range(5):
+            users = cls.find(dbs, "name like 'foobar_%s_%%'" % i)
+            if not users:
+                for j in range(2):
+                    cls.create(dbs, {
+                        'name': 'foobar_%s_%s' % (i, j),
+                        'email': 'foobar_%s@domain_%s' % (i, j),
+                        'age': 0,
+                    })
 
 
 if __name__ == '__main__':
@@ -63,12 +57,12 @@ if __name__ == '__main__':
             cfg['database'],
             debug=args.debug)
 
-        # interactive_db_setup(cfg)
-        # print("DB setup: Done")
+        sql.interactive_db_setup(cfg)
+        print("DB setup: Done")
 
-        # models = [User]
-        # init_database(dbh, models)
-        # print("DB initialize: Done")
+        models = [User]
+        sql.init_database(dbh, models)
+        print("DB initialize: Done")
 
         # checking DB
         print("*" * 50)
