@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys
+import random
 import logging
 from argparse import ArgumentParser
 from traceback import format_exc
@@ -73,23 +74,54 @@ if __name__ == '__main__':
             print("Total: %s" % User.count(dbs, None))
         print("*" * 50)
 
-        # print("Filter & modify entries:")
-        # with dbh as dbs:
-        #     users = User.find(dbs, (User.or_(
-        #         User.name.like('foobar_2_%%'),
-        #         User.name.like('foobar_4_%%')),))
-        # with dbh as dbs:
-        #     for usr in users:
-        #         print(usr)
-        #         usr.modify(dbs, {
-        #             User.name: usr.name + '_#',
-        #         })
-        # print("*" * 50)
-        # print("All entries after modify:")
-        # with dbh as dbs:
-        #     for usr in User.find(dbs, None):
-        #         print(usr)
-        # print("*" * 50)
+        print("\nCreate new entries:")
+        with dbh as dbs:
+            usr = User.create(dbs, {
+                'name': 'foobar_NEW',
+                'email': 'foobar_NEW@domain',
+                'age': 0,
+            })
+            print(usr)
+
+        print("\nFilter & modify entries:")
+        with dbh as dbs:
+            users = User.find(
+                dbs, "name like 'foobar_2_%%' OR name like 'foobar_4_%%'")
+            for usr in users:
+                print(usr)
+                usr.modify(dbs, {
+                    'name': usr.name + '_#',
+                })
+
+        print("\nFilter & delete entries:")
+        with dbh as dbs:
+            users = User.find(
+                dbs, "name like 'foobar_4_%%_#_#_#'")
+            for usr in users:
+                print(usr)
+                usr.remove(dbs)
+
+        print("\nUpdate multiple entries:")
+        with dbh as dbs:
+            User.update(
+                dbs, "name like 'foobar_0_%%'", {
+                    'age': random.randint(1, 10),
+                })
+            print("Modified rows: %s" % dbs.rowcount())
+
+        print("\nDelete multiple entries:")
+        with dbh as dbs:
+            User.delete(
+                dbs, "name like 'foobar_3_%%'")
+            print("Modified rows: %s" % dbs.rowcount())
+
+        print("*" * 50)
+        print("All entries after changes:")
+        with dbh as dbs:
+            for usr in User.find(dbs, None):
+                print(usr)
+            print("Total: %s" % User.count(dbs, None))
+        print("*" * 50)
 
     except Exception:
         print(format_exc())

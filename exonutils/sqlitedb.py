@@ -61,6 +61,20 @@ class BaseModel(object):
             return '%s ASC' % cls.__columns__[1]
         return None
 
+    def modify(self, dbs, data, commit=True):
+        if 'guid' in data.keys():
+            del(data['guid'])
+        dbs.query(self.__class__).filter_by(guid=self.guid).update(data)
+        if commit:
+            dbs.commit()
+        return True
+
+    def remove(self, dbs, commit=True):
+        dbs.query(self.__class__).filter_by(guid=self.guid).delete()
+        if commit:
+            dbs.commit()
+        return True
+
     @classmethod
     def create(cls, dbs, data, commit=True):
         obj = cls(data)
@@ -69,6 +83,26 @@ class BaseModel(object):
         if commit:
             dbs.commit()
         return obj
+
+    @classmethod
+    def update(cls, dbs, filters, data, commit=True):
+        q = dbs.query(cls)
+        if filters:
+            q = q.filter(filters)
+        q.update(data)
+        if commit:
+            dbs.commit()
+        return True
+
+    @classmethod
+    def delete(cls, dbs, filters, commit=True):
+        q = dbs.query(cls)
+        if filters:
+            q = q.filter(filters)
+        q.delete()
+        if commit:
+            dbs.commit()
+        return True
 
     @classmethod
     def get(cls, dbs, guid):
@@ -243,6 +277,32 @@ class _Query(object):
 
         return self.dbs.execute(q, params=data)
 
+    def update(self, data):
+        params = {'%s_1' % k: v for k, v in data.items()}
+
+        q = "UPDATE %s" % self.Model.__tablename__
+        q += "\nSET %s" % ', '.join([
+            '%s=:%s_1' % (k, k) for k in data.keys()])
+        if self._filters:
+            q += "\nWHERE %s" % self._filters
+            if self._filterparams:
+                if type(self._filterparams) is not dict:
+                    raise RuntimeError(
+                        "invalid filter params data type, " +
+                        "must be dict type to use with update")
+                params.update(self._filterparams)
+        q += ";"
+
+        return self.dbs.execute(q, params=params)
+
+    def delete(self):
+        q = "DELETE FROM %s" % self.Model.__tablename__
+        if self._filters:
+            q += "\nWHERE %s" % self._filters
+        q += ";"
+
+        return self.dbs.execute(q, params=self._filterparams)
+
 
 class _Session(object):
 
@@ -283,7 +343,8 @@ class _Session(object):
 
         if not self.connection:
             self.connect()
-        self.cursor = self.connection.cursor()
+        if not self.cursor:
+            self.cursor = self.connection.cursor()
         if params:
             self.cursor.execute(sql, params)
         else:
@@ -299,7 +360,8 @@ class _Session(object):
 
         if not self.connection:
             self.connect()
-        self.cursor = self.connection.cursor()
+        if not self.cursor:
+            self.cursor = self.connection.cursor()
         self.cursor.execute(sql_script)
         return True
 
