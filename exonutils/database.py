@@ -3,11 +3,10 @@
     :copyright: 2021, ExonLabs. All rights reserved.
     :license: BSD, see LICENSE for more details.
 """
-import logging
 import uuid
+import logging
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
-from traceback import format_exc
 
 __all__ = ['BaseModel', 'DatabaseHandler']
 
@@ -33,9 +32,6 @@ def init_db_logging(debug=0):
 @as_declarative()
 class BaseModel(object):
 
-    and_ = sa.and_
-    or_ = sa.or_
-
     guid = sa.Column(
         sa.String(32), primary_key=True, index=True, unique=True,
         autoincrement=False, nullable=False)
@@ -54,7 +50,10 @@ class BaseModel(object):
     def default_orders(cls):
         # Usage:
         # return (cls.COLUMN.asc(), ...)
-        return (cls.__mapper__.columns.values()[1].asc(),)
+        cols = cls.__mapper__.columns.values()
+        if len(cols) >= 2:
+            return (cols[1].asc(),)
+        return None
 
     def modify(self, dbs, data, commit=True):
         for attr, value in data.items():
@@ -63,11 +62,13 @@ class BaseModel(object):
         dbs.add(self)
         if commit:
             dbs.commit()
+        return True
 
     def remove(self, dbs, commit=True):
         dbs.delete(self)
         if commit:
             dbs.commit()
+        return True
 
     @classmethod
     def create(cls, dbs, data, commit=True):
@@ -86,32 +87,34 @@ class BaseModel(object):
         q = dbs.query(cls)
         if filters:
             q = q.filter(*filters)
-        q.update(data, synchronize_session=False)
+        res = q.update(data, synchronize_session=False)
         if commit:
             dbs.commit()
+        return res
 
     @classmethod
     def delete(cls, dbs, filters, commit=True):
         q = dbs.query(cls)
         if filters:
             q = q.filter(*filters)
-        q.delete(synchronize_session=False)
+        res = q.delete(synchronize_session=False)
         if commit:
             dbs.commit()
+        return res
 
     @classmethod
     def get(cls, dbs, guid):
         return dbs.query(cls).get(guid)
 
     @classmethod
-    def find(cls, dbs, filters, orders=None, offset=0, limit=-1):
+    def find(cls, dbs, filters, orders=None, limit=-1, offset=0):
         q = dbs.query(cls)
         if filters:
             q = q.filter(*filters)
         orders = orders or cls.default_orders()
         if orders:
             q = q.order_by(*orders)
-        return q.offset(offset).limit(limit).all() or []
+        return q.limit(limit).offset(offset).all() or []
 
     @classmethod
     def find_one(cls, dbs, filters):
@@ -128,31 +131,31 @@ class BaseModel(object):
         return q.count()
 
     @classmethod
-    def migrate(cls, op, dbs):
-        # Usage:
-        # op.drop_table(...)
-        pass
-
-    @classmethod
     def initial_data(cls, dbs):
         # Usage:
         # cls.create(dbs, ...)
         pass
 
+    @classmethod
+    def migrate(cls, op, dbs):
+        # Usage:
+        # op.drop_table(...)
+        pass
 
-class DatabaseSessionContext(object):
 
-    def __init__(self, session_factory):
-        self._factory = session_factory
-        self._session = None
+class SessionHandler(object):
+
+    def __init__(self, session):
+        self._session = session
 
     def __enter__(self):
-        self._session = self._factory()
         return self._session
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self._session:
-            self._session.close()
+        self._session.close()
+
+    def __del__(self):
+        self._session.close()
 
 
 class DatabaseHandler(object):
@@ -161,8 +164,6 @@ class DatabaseHandler(object):
                  username=None, password=None, debug=0):
         if backend not in DB_BACKENDS:
             raise RuntimeError("invalid backend: %s" % backend)
-        if not database:
-            raise RuntimeError("no database specified")
 
         self.debug = debug
         self.engine = None
@@ -183,6 +184,9 @@ class DatabaseHandler(object):
             username=username, password=password, query=query)
 
     def init_engine(self, pool=None, connect_timeout=0, query_timeout=0):
+        if not self.url:
+            raise RuntimeError("no database url specified")
+
         backend = self.url.get_backend_name()
         if backend == 'sqlite':
             self.engine = sa.create_engine(
@@ -222,57 +226,36 @@ class DatabaseHandler(object):
         self.session_factory = sa.orm.scoped_session(
             sa.orm.sessionmaker(bind=self.engine))
 
-    def create_session(self):
+    def session_handler(self):
         # initialize session factory
         if not self.session_factory:
             self.init_session_factory()
 
-        return self.session_factory()
-
-    def session_context(self):
-        # initialize session factory
-        if not self.session_factory:
-            self.init_session_factory()
-
-        return DatabaseSessionContext(self.session_factory)
-
-    def destroy(self):
-        if self.session_factory:
-            self.session_factory.remove()
+        return SessionHandler(self.session_factory())
 
 
 def init_database(dbh, models):
     from alembic.operations import Operations
     from alembic.migration import MigrationContext
 
-    err = ''
-    try:
-        # disable pooling and create db session
-        dbh.init_engine(pool=None)
-        dbs = dbh.create_session()
+    # init engine and disable pooling
+    dbh.init_engine(pool=None)
 
-        # create database structure
-        BaseModel.metadata.create_all(dbh.engine)
+    # create database structure
+    BaseModel.metadata.create_all(dbh.engine)
 
-        # execute migrations
+    # execute migrations
+    with dbh.session_handler() as dbs:
         conn = dbh.engine.connect()
         op = Operations(MigrationContext.configure(conn))
         for Model in models:
             Model.migrate(op, dbs)
-            dbs.commit()
 
-        # load initial models data
+    # load initial models data
+    with dbh.session_handler() as dbs:
         for Model in models:
             Model.initial_data(dbs)
-            dbs.commit()
 
-    except Exception:
-        err = format_exc().strip()
-    finally:
-        dbh.destroy()
-
-    if err:
-        raise RuntimeError(err)
     return True
 
 
