@@ -89,20 +89,20 @@ class BaseModel(object):
         q = dbs.query(cls)
         if filters:
             q = q.filter(filters)
-        q.update(data)
+        res = q.update(data)
         if commit:
             dbs.commit()
-        return True
+        return res
 
     @classmethod
     def delete(cls, dbs, filters, commit=True):
         q = dbs.query(cls)
         if filters:
             q = q.filter(filters)
-        q.delete()
+        res = q.delete()
         if commit:
             dbs.commit()
-        return True
+        return res
 
     @classmethod
     def get(cls, dbs, guid):
@@ -293,7 +293,8 @@ class _Query(object):
                 params.update(self._filterparams)
         q += ";"
 
-        return self.dbs.execute(q, params=params)
+        self.dbs.execute(q, params=params)
+        return self.dbs.rowcount()
 
     def delete(self):
         q = "DELETE FROM %s" % self.Model.__tablename__
@@ -301,7 +302,8 @@ class _Query(object):
             q += "\nWHERE %s" % self._filters
         q += ";"
 
-        return self.dbs.execute(q, params=self._filterparams)
+        self.dbs.execute(q, params=self._filterparams)
+        return self.dbs.rowcount()
 
 
 class _Session(object):

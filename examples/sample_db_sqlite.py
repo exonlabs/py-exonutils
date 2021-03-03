@@ -104,17 +104,17 @@ if __name__ == '__main__':
 
         print("\nUpdate multiple entries:")
         with dbh.session_handler() as dbs:
-            User.update(
+            res = User.update(
                 dbs, "name like 'foobar_0_%%'", {
                     'age': random.randint(1, 10),
                 })
-            print("Modified rows: %s" % dbs.rowcount())
+            print("Modified rows: %s" % res)
 
         print("\nDelete multiple entries:")
         with dbh.session_handler() as dbs:
-            User.delete(
+            res = User.delete(
                 dbs, "name like 'foobar_3_%%'")
-            print("Modified rows: %s" % dbs.rowcount())
+            print("Modified rows: %s" % res)
 
         print("*" * 50)
         print("All entries after changes:")
