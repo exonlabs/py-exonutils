@@ -5,7 +5,8 @@ import logging
 from argparse import ArgumentParser
 from traceback import format_exc
 
-from exonutils import sqlitedb as sql
+from exonutils.sqlitedb import BaseModel, DatabaseHandler, init_db_logging, \
+    init_database, interactive_db_config, interactive_db_setup
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
@@ -14,7 +15,7 @@ logging.addLevelName(logging.WARNING, "WARN")
 logging.addLevelName(logging.CRITICAL, "FATAL")
 
 
-class User(sql.BaseModel):
+class User(BaseModel):
     __tablename__ = 'users'
     __columns__ = ['guid', 'name', 'email', 'age']
     __create__ = """
@@ -47,35 +48,35 @@ if __name__ == '__main__':
             help='set debug modes')
         args = pr.parse_args()
 
-        sql.init_db_logging(debug=args.debug)
+        init_db_logging(debug=args.debug)
 
-        cfg = sql.interactive_db_config(defaults={
+        cfg = interactive_db_config(defaults={
             'database': '/tmp/test.db',
         })
         print("DB config: %s" % cfg)
 
-        dbh = sql.DatabaseHandler(
+        dbh = DatabaseHandler(
             cfg['database'],
             debug=args.debug)
 
-        sql.interactive_db_setup(cfg)
+        interactive_db_setup(cfg)
         print("DB setup: Done")
 
         models = [User]
-        sql.init_database(dbh, models)
+        init_database(dbh, models)
         print("DB initialize: Done")
 
         # checking DB
         print("*" * 50)
         print("All entries:")
-        with dbh as dbs:
+        with dbh.session_handler() as dbs:
             for usr in User.find(dbs, None):
                 print(usr)
             print("Total: %s" % User.count(dbs, None))
         print("*" * 50)
 
         print("\nCreate new entries:")
-        with dbh as dbs:
+        with dbh.session_handler() as dbs:
             usr = User.create(dbs, {
                 'name': 'foobar_NEW',
                 'email': 'foobar_NEW@domain',
@@ -84,7 +85,7 @@ if __name__ == '__main__':
             print(usr)
 
         print("\nFilter & modify entries:")
-        with dbh as dbs:
+        with dbh.session_handler() as dbs:
             users = User.find(
                 dbs, "name like 'foobar_2_%%' OR name like 'foobar_4_%%'")
             for usr in users:
@@ -94,7 +95,7 @@ if __name__ == '__main__':
                 })
 
         print("\nFilter & delete entries:")
-        with dbh as dbs:
+        with dbh.session_handler() as dbs:
             users = User.find(
                 dbs, "name like 'foobar_4_%%_#_#_#'")
             for usr in users:
@@ -102,7 +103,7 @@ if __name__ == '__main__':
                 usr.remove(dbs)
 
         print("\nUpdate multiple entries:")
-        with dbh as dbs:
+        with dbh.session_handler() as dbs:
             User.update(
                 dbs, "name like 'foobar_0_%%'", {
                     'age': random.randint(1, 10),
@@ -110,14 +111,14 @@ if __name__ == '__main__':
             print("Modified rows: %s" % dbs.rowcount())
 
         print("\nDelete multiple entries:")
-        with dbh as dbs:
+        with dbh.session_handler() as dbs:
             User.delete(
                 dbs, "name like 'foobar_3_%%'")
             print("Modified rows: %s" % dbs.rowcount())
 
         print("*" * 50)
         print("All entries after changes:")
-        with dbh as dbs:
+        with dbh.session_handler() as dbs:
             for usr in User.find(dbs, None):
                 print(usr)
             print("Total: %s" % User.count(dbs, None))

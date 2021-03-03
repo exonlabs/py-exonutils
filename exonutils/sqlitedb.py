@@ -308,14 +308,10 @@ class _Session(object):
 
     connect_timeout = 30
 
-    def __init__(self, database, debug=0):
-        self.debug = debug
+    def __init__(self, database):
         self.database = database
         self.connection = None
         self.cursor = None
-
-    def query(self, model):
-        return _Query(self, model)
 
     def connect(self):
         global _logger
@@ -333,6 +329,9 @@ class _Session(object):
             _logger.debug("close connection [%s]" % self.database)
             self.connection.close()
         self.connection = None
+
+    def query(self, model):
+        return _Query(self, model)
 
     def execute(self, sql, params=None):
         global _logger
@@ -402,40 +401,47 @@ class _Session(object):
         return False
 
 
+class SessionHandler(object):
+
+    def __init__(self, session):
+        self._session = session
+
+    def __enter__(self):
+        return self._session
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._session.close()
+
+    def __del__(self):
+        self._session.close()
+
+
 class DatabaseHandler(object):
 
     def __init__(self, database, debug=0):
         self.debug = debug
         self.database = database
-        self.session = None
 
-    def __enter__(self):
-        return self.create_session()
+    def session_factory(self):
+        return _Session(self.database)
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close_session()
-
-    def create_session(self):
-        self.session = _Session(self.database, debug=self.debug)
-        return self.session
-
-    def close_session(self):
-        if self.session:
-            self.session.close()
-        self.session = None
+    def session_handler(self):
+        return SessionHandler(self.session_factory())
 
 
 def init_database(dbh, models):
-    with dbh as dbs:
-        # create database structure
+    # create database structure
+    with dbh.session_handler() as dbs:
         for Model in models:
             dbs.executescript(Model.__create__)
 
-        # execute migrations
+    # execute migrations
+    with dbh.session_handler() as dbs:
         for Model in models:
             Model.migrate(dbs)
 
-        # load initial models data
+    # load initial models data
+    with dbh.session_handler() as dbs:
         for Model in models:
             Model.initial_data(dbs)
 
