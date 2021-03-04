@@ -67,13 +67,11 @@ if __name__ == '__main__':
         print("DB initialize: Done")
 
         # checking DB
-        print("*" * 50)
-        print("All entries:")
+        print("\nAll entries:")
         with dbh.session_handler() as dbs:
             for usr in User.find(dbs, None):
                 print(usr)
             print("Total: %s" % User.count(dbs, None))
-        print("*" * 50)
 
         print("\nCreate new entries:")
         with dbh.session_handler() as dbs:
@@ -116,13 +114,11 @@ if __name__ == '__main__':
                 dbs, "name like 'foobar_3_%%'")
             print("Modified rows: %s" % res)
 
-        print("*" * 50)
-        print("All entries after changes:")
+        print("\nAll entries after changes:")
         with dbh.session_handler() as dbs:
             for usr in User.find(dbs, None):
                 print(usr)
             print("Total: %s" % User.count(dbs, None))
-        print("*" * 50)
 
     except Exception:
         print(format_exc())

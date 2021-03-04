@@ -363,7 +363,7 @@ class _Session(object):
             self.connect()
         if not self.cursor:
             self.cursor = self.connection.cursor()
-        self.cursor.execute(sql_script)
+        self.cursor.executescript(sql_script)
         return True
 
     def fetchone(self):
