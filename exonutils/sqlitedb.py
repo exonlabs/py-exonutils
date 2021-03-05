@@ -9,23 +9,13 @@ import uuid
 import logging
 import sqlite3
 
-__all__ = ['BaseModel', 'DatabaseHandler']
+__all__ = []
 
 _logger = logging.getLogger('sqlitedb')
 
 
-def init_db_logging(debug=0):
-    global _logger
-    if debug >= 5:
-        _logger.setLevel(logging.DEBUG)
-    elif debug >= 4:
-        _logger.setLevel(logging.INFO)
-    else:
-        _logger.setLevel(logging.ERROR)
-
-
 class BaseModel(object):
-    __tablename__ = None
+    __tablename__ = ''
     __columns__ = ()
     __create__ = ""
 
@@ -57,6 +47,7 @@ class BaseModel(object):
 
     @classmethod
     def default_orders(cls):
+        # return string 'col1 ASC, col2 DESC ...'
         if len(cls.__columns__) >= 2:
             return '%s ASC' % cls.__columns__[1]
         return None
@@ -64,16 +55,56 @@ class BaseModel(object):
     def modify(self, dbs, data, commit=True):
         if 'guid' in data.keys():
             del(data['guid'])
-        dbs.query(self.__class__).filter_by(guid=self.guid).update(data)
+        q = dbs.query(self.__class__)
+        q.filter_by(guid=self.guid).update(data)
         if commit:
             dbs.commit()
         return True
 
     def remove(self, dbs, commit=True):
-        dbs.query(self.__class__).filter_by(guid=self.guid).delete()
+        q = dbs.query(self.__class__)
+        q.filter_by(guid=self.guid).delete()
         if commit:
             dbs.commit()
         return True
+
+    @classmethod
+    def get(cls, dbs, guid):
+        return dbs.query(cls).filter_by(guid=guid).one_or_none()
+
+    @classmethod
+    def select(cls, dbs, filters=None, orders=None, limit=100, offset=0):
+        q = dbs.query(cls)
+        if filters:
+            q = q.filter(filters)
+        orders = orders or cls.default_orders()
+        if orders:
+            q = q.order_by(orders)
+        return q.limit(limit).offset(offset).all() or []
+
+    @classmethod
+    def find_all(cls, dbs, filters, orders=None):
+        q = dbs.query(cls)
+        if filters:
+            q = q.filter(filters)
+        orders = orders or cls.default_orders()
+        if orders:
+            q = q.order_by(orders)
+        return q.all() or []
+
+    @classmethod
+    def find_one(cls, dbs, filters):
+        q = dbs.query(cls)
+        if filters:
+            q = q.filter(filters)
+        return q.one_or_none()
+
+    @classmethod
+    def count(cls, dbs, filters):
+        q = dbs.query(cls)
+        if filters:
+            q = q.filter(filters)
+        return q.count()
 
     @classmethod
     def create(cls, dbs, data, commit=True):
@@ -105,41 +136,15 @@ class BaseModel(object):
         return res
 
     @classmethod
-    def get(cls, dbs, guid):
-        return dbs.query(cls).filter_by(guid=guid).one_or_none()
-
-    @classmethod
-    def find(cls, dbs, filters, orders=None, limit=-1, offset=0):
-        q = dbs.query(cls)
-        if filters:
-            q = q.filter(filters)
-        orders = orders or cls.default_orders()
-        if orders:
-            q = q.order_by(orders)
-        return q.limit(limit).offset(offset).all() or []
-
-    @classmethod
-    def find_one(cls, dbs, filters):
-        q = dbs.query(cls)
-        if filters:
-            q = q.filter(filters)
-        return q.one_or_none()
-
-    @classmethod
-    def count(cls, dbs, filters):
-        q = dbs.query(cls)
-        if filters:
-            q = q.filter(filters)
-        return q.count()
-
-    @classmethod
     def initial_data(cls, dbs):
         # Usage:
         # cls.create(dbs, ...)
         pass
 
     @classmethod
-    def migrate(cls, dbs):
+    def table_migrate(cls, dbs):
+        # Usage:
+        # dbs.executescript(...)
         pass
 
 
@@ -310,14 +315,16 @@ class _Session(object):
 
     connect_timeout = 30
 
-    def __init__(self, database):
+    def __init__(self, database, debug=0):
+        self.debug = debug
         self.database = database
         self.connection = None
         self.cursor = None
 
     def connect(self):
-        global _logger
-        _logger.debug("open connection [%s]" % self.database)
+        if self.debug >= 4:
+            global _logger
+            _logger.debug("(%s) open connection" % self.database)
         self.connection = sqlite3.connect(
             self.database,
             timeout=self.connect_timeout,
@@ -326,9 +333,10 @@ class _Session(object):
         self.connection.row_factory = sqlite3.Row
 
     def close(self):
-        global _logger
+        if self.debug >= 4:
+            global _logger
+            _logger.debug("(%s) close connection" % self.database)
         if self.connection:
-            _logger.debug("close connection [%s]" % self.database)
             self.connection.close()
         self.connection = None
 
@@ -336,11 +344,11 @@ class _Session(object):
         return _Query(self, model)
 
     def execute(self, sql, params=None):
-        global _logger
-
         # clean extra newlines with spaces
-        sql = re.sub('\n\\s+', '\n', sql).strip()
-        _logger.info("SQL:\n%s\nPARAMS: %s" % (sql, params))
+        if self.debug >= 4:
+            global _logger
+            sql = re.sub('\n\\s+', '\n', sql).strip()
+            _logger.info("SQL:\n%s\nPARAMS: %s" % (sql, params))
 
         if not self.connection:
             self.connect()
@@ -353,11 +361,11 @@ class _Session(object):
         return True
 
     def executescript(self, sql_script):
-        global _logger
-
         # clean extra newlines with spaces
-        sql_script = re.sub('\n\\s+', '\n', sql_script).strip()
-        _logger.info("SQL-SCRIPT:\n%s" % sql_script)
+        if self.debug >= 4:
+            global _logger
+            sql_script = re.sub('\n\\s+', '\n', sql_script).strip()
+            _logger.info("SQL-SCRIPT:\n%s" % sql_script)
 
         if not self.connection:
             self.connect()
@@ -387,17 +395,19 @@ class _Session(object):
         return None
 
     def commit(self):
-        global _logger
+        if self.debug >= 4:
+            global _logger
+            _logger.debug("(%s) commit" % self.database)
         if self.connection:
-            _logger.debug("connection commit [%s]" % self.database)
             self.connection.commit()
             return True
         return False
 
     def rollback(self):
-        global _logger
+        if self.debug >= 4:
+            global _logger
+            _logger.debug("(%s) rollback" % self.database)
         if self.connection:
-            _logger.debug("connection rollback [%s]" % self.database)
             self.connection.rollback()
             return True
         return False
@@ -414,9 +424,6 @@ class SessionHandler(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._session.close()
 
-    def __del__(self):
-        self._session.close()
-
 
 class DatabaseHandler(object):
 
@@ -425,12 +432,24 @@ class DatabaseHandler(object):
         self.database = database
 
     def session_factory(self):
-        return _Session(self.database)
+        return _Session(self.database, debug=self.debug)
 
     def session_handler(self):
         return SessionHandler(self.session_factory())
 
 
+# adjust logging for sqlite
+def init_logging(debug=0):
+    global _logger
+    if debug >= 5:
+        _logger.setLevel(logging.DEBUG)
+    elif debug >= 4:
+        _logger.setLevel(logging.INFO)
+    else:
+        _logger.setLevel(logging.ERROR)
+
+
+# create database tables and initial data
 def init_database(dbh, models):
     # create database structure
     with dbh.session_handler() as dbs:
@@ -440,7 +459,7 @@ def init_database(dbh, models):
     # execute migrations
     with dbh.session_handler() as dbs:
         for Model in models:
-            Model.migrate(dbs)
+            Model.table_migrate(dbs)
 
     # load initial models data
     with dbh.session_handler() as dbs:
@@ -448,27 +467,3 @@ def init_database(dbh, models):
             Model.initial_data(dbs)
 
     return True
-
-
-def interactive_db_config(backends=None, defaults={}):
-    from .console import ConsoleInput as Input
-
-    default_database = defaults.get('database', None)
-
-    cfg = {}
-    cfg['database'] = Input.get(
-        "Enter db path", default=default_database, required=True)
-
-    return cfg
-
-
-def interactive_db_setup(cfg=None, defaults={}, quiet=False):
-    if not cfg:
-        cfg = interactive_db_config(defaults=defaults)
-
-    database = cfg.get('database', '')
-    if not database:
-        raise RuntimeError("empty database name")
-
-    # create db file
-    open(database, 'a').close()
