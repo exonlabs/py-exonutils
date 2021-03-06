@@ -17,18 +17,11 @@ logging.addLevelName(logging.CRITICAL, "FATAL")
 
 class User(db.BaseModel):
     __tablename__ = 'users'
-    __columns__ = ('guid', 'name', 'email', 'age')
-    __create__ = """
-        CREATE TABLE IF NOT EXISTS users (
-            guid VARCHAR(32) NOT NULL,
-            name VARCHAR(32) NOT NULL,
-            email VARCHAR(256) NOT NULL,
-            age INTEGER NOT NULL,
-            PRIMARY KEY (guid)
-        );
-        CREATE UNIQUE INDEX IF NOT EXISTS
-            ix_users_guid ON users (guid);
-    """
+    __table_columns__ = [
+        ('name', 'VARCHAR(32) NOT NULL'),
+        ('email', 'VARCHAR(256) NOT NULL'),
+        ('age', 'INTEGER NOT NULL'),
+    ]
 
     @classmethod
     def initial_data(cls, dbs):

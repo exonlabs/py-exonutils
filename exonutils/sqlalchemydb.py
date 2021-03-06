@@ -29,17 +29,18 @@ class BaseModel(object):
             ', '.join(['%s=%s' % (a, getattr(self, a)) for a in attrs]))
 
     @classmethod
-    def default_orders(cls):
+    def _orders(cls):
         # return tuple (cls.COLUMN.asc(), ...)
-        cols = cls.__mapper__.columns.values()
-        if len(cols) >= 2:
-            return (cols[1].asc(),)
+        cols = cls.__mapper__.columns.values()[1:]
+        if cols:
+            return (cols[0].asc(),)
         return None
 
     def modify(self, dbs, data, commit=True):
+        if 'guid' in data.keys():
+            del(data['guid'])
         for attr, value in data.items():
-            if attr != 'guid':
-                setattr(self, attr, value)
+            setattr(self, attr, value)
         dbs.add(self)
         if commit:
             dbs.commit()
@@ -60,7 +61,7 @@ class BaseModel(object):
         q = dbs.query(cls)
         if filters:
             q = q.filter(*filters)
-        orders = orders or cls.default_orders()
+        orders = orders or cls._orders()
         if orders:
             q = q.order_by(*orders)
         return q.limit(limit).offset(offset).all() or []
@@ -70,7 +71,7 @@ class BaseModel(object):
         q = dbs.query(cls)
         if filters:
             q = q.filter(*filters)
-        orders = orders or cls.default_orders()
+        orders = orders or cls._orders()
         if orders:
             q = q.order_by(*orders)
         return q.all() or []
@@ -91,11 +92,12 @@ class BaseModel(object):
 
     @classmethod
     def create(cls, dbs, data, commit=True):
+        if 'guid' in data.keys():
+            del(data['guid'])
         obj = cls()
         obj.guid = uuid.uuid5(uuid.uuid1(), uuid.uuid4().hex).hex
         for attr, value in data.items():
-            if attr != 'guid':
-                setattr(obj, attr, value)
+            setattr(obj, attr, value)
         dbs.add(obj)
         if commit:
             dbs.commit()
@@ -103,6 +105,8 @@ class BaseModel(object):
 
     @classmethod
     def update(cls, dbs, filters, data, commit=True):
+        if 'guid' in data.keys():
+            del(data['guid'])
         q = dbs.query(cls)
         if filters:
             q = q.filter(*filters)

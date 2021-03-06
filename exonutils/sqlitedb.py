@@ -4,7 +4,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import re
-import copy
 import uuid
 import logging
 import sqlite3
@@ -16,40 +15,45 @@ _logger = logging.getLogger('sqlitedb')
 
 class BaseModel(object):
     __tablename__ = ''
-    __columns__ = ()
-    __create__ = ""
+    __table_args__ = {}
+    __table_columns__ = [
+        # Usage:
+        # (colname, definition [, constraint]),
+        # ex:
+        # ('name1', 'VARCHAR(32) NOT NULL', 'INDEX UNIQUE'),
+    ]
+    __table_constraints__ = [
+        # ex:
+        # 'CHECK (field1 IN (0, 1))',
+        # 'FOREIGN KEY (tbl1_id) REFERENCES tbl1 (tbl1_id)',
+    ]
 
     def __init__(self, data):
-        self.__data__ = {}
-        for k in self.__columns__:
-            try:
-                self.__data__[k] = copy.deepcopy(data[k])
-            except:
-                pass
-
-    def __getattr__(self, attr):
-        if attr in self.__columns__:
-            return self.__data__[attr]
-        else:
-            return super(BaseModel, self).__getattr__(attr)
-
-    def __setattr__(self, attr, value):
-        if attr in self.__columns__:
-            self.__data__[attr] = value
-        else:
-            super(BaseModel, self).__setattr__(attr, value)
+        for k in self._columns():
+            setattr(self, k[0], data[k[0]])
 
     def __repr__(self):
-        attrs = self.__columns__[1:]
+        attrs = [k[0] for k in self._columns()][1:]
         return "%s(%s)" % (
             self.__class__.__name__,
-            ', '.join(['%s=%s' % (a, self.__data__[a]) for a in attrs]))
+            ', '.join(['%s=%s' % (a, getattr(self, a)) for a in attrs]))
 
     @classmethod
-    def default_orders(cls):
+    def _columns(cls):
+        cols = [('guid', 'VARCHAR(32) NOT NULL', 'PRIMARY')]
+        cols.extend(cls.__table_columns__)
+        return cols
+
+    @classmethod
+    def _constraints(cls):
+        return cls.__table_constraints__
+
+    @classmethod
+    def _orders(cls):
         # return string 'col1 ASC, col2 DESC ...'
-        if len(cls.__columns__) >= 2:
-            return '%s ASC' % cls.__columns__[1]
+        cols = [k[0] for k in cls._columns()][1:]
+        if cols:
+            return '%s ASC' % cols[0]
         return None
 
     def modify(self, dbs, data, commit=True):
@@ -77,7 +81,7 @@ class BaseModel(object):
         q = dbs.query(cls)
         if filters:
             q = q.filter(filters)
-        orders = orders or cls.default_orders()
+        orders = orders or cls._orders()
         if orders:
             q = q.order_by(orders)
         return q.limit(limit).offset(offset).all() or []
@@ -87,7 +91,7 @@ class BaseModel(object):
         q = dbs.query(cls)
         if filters:
             q = q.filter(filters)
-        orders = orders or cls.default_orders()
+        orders = orders or cls._orders()
         if orders:
             q = q.order_by(orders)
         return q.all() or []
@@ -108,15 +112,17 @@ class BaseModel(object):
 
     @classmethod
     def create(cls, dbs, data, commit=True):
+        data['guid'] = uuid.uuid5(uuid.uuid1(), uuid.uuid4().hex).hex
         obj = cls(data)
-        obj.guid = uuid.uuid5(uuid.uuid1(), uuid.uuid4().hex).hex
-        dbs.query(cls).insert(obj.__data__)
+        dbs.query(cls).insert(data)
         if commit:
             dbs.commit()
         return obj
 
     @classmethod
     def update(cls, dbs, filters, data, commit=True):
+        if 'guid' in data.keys():
+            del(data['guid'])
         q = dbs.query(cls)
         if filters:
             q = q.filter(filters)
@@ -194,18 +200,18 @@ class _Query(object):
         return self
 
     def all(self):
-        q = "SELECT * FROM %s" % self.Model.__tablename__
+        q = 'SELECT * FROM "%s"' % self.Model.__tablename__
         if self._filters:
-            q += "\nWHERE %s" % self._filters
+            q += '\nWHERE %s' % self._filters
         if self._groupby:
-            q += "\nGROUP BY %s" % self._groupby
+            q += '\nGROUP BY %s' % self._groupby
         if self._orderby:
-            q += "\nORDER BY %s" % self._orderby
+            q += '\nORDER BY %s' % self._orderby
         if self._limit:
-            q += "\nLIMIT %s" % self._limit
+            q += '\nLIMIT %s' % self._limit
         if self._offset:
-            q += "\nOFFSET %s" % self._offset
-        q += ";"
+            q += '\nOFFSET %s' % self._offset
+        q += ';'
 
         self.dbs.execute(q, params=self._filterparams)
         res = self.dbs.fetchall()
@@ -215,14 +221,14 @@ class _Query(object):
         return None
 
     def first(self):
-        q = "SELECT * FROM %s" % self.Model.__tablename__
+        q = 'SELECT * FROM "%s"' % self.Model.__tablename__
         if self._filters:
-            q += "\nWHERE %s" % self._filters
+            q += '\nWHERE %s' % self._filters
         if self._groupby:
-            q += "\nGROUP BY %s" % self._groupby
+            q += '\nGROUP BY %s' % self._groupby
         if self._orderby:
-            q += "\nORDER BY %s" % self._orderby
-        q += "\nLIMIT 1;"
+            q += '\nORDER BY %s' % self._orderby
+        q += '\nLIMIT 1;'
 
         self.dbs.execute(q, params=self._filterparams)
         res = self.dbs.fetchall()
@@ -239,14 +245,14 @@ class _Query(object):
         raise RuntimeError("no results found")
 
     def one_or_none(self):
-        q = "SELECT * FROM %s" % self.Model.__tablename__
+        q = 'SELECT * FROM "%s"' % self.Model.__tablename__
         if self._filters:
-            q += "\nWHERE %s" % self._filters
+            q += '\nWHERE %s' % self._filters
         if self._groupby:
-            q += "\nGROUP BY %s" % self._groupby
+            q += '\nGROUP BY %s' % self._groupby
         if self._orderby:
-            q += "\nORDER BY %s" % self._orderby
-        q += "\nLIMIT 2;"
+            q += '\nORDER BY %s' % self._orderby
+        q += '\nLIMIT 2;'
 
         self.dbs.execute(q, params=self._filterparams)
         res = self.dbs.fetchall()
@@ -258,12 +264,12 @@ class _Query(object):
         return None
 
     def count(self):
-        q = "SELECT count(*) as count FROM %s" % self.Model.__tablename__
+        q = 'SELECT count(*) as count FROM "%s"' % self.Model.__tablename__
         if self._filters:
-            q += "\nWHERE %s" % self._filters
+            q += '\nWHERE %s' % self._filters
         if self._groupby:
-            q += "\nGROUP BY %s" % self._groupby
-        q += ";"
+            q += '\nGROUP BY %s' % self._groupby
+        q += ';'
 
         self.dbs.execute(q, params=self._filterparams)
         res = self.dbs.fetchall()
@@ -273,39 +279,45 @@ class _Query(object):
         return 0
 
     def insert(self, data):
-        q = "INSERT INTO %s" % self.Model.__tablename__
-        q += "\n(%s)" % ', '.join([
-            k for k in self.Model.__columns__])
-        q += "\nVALUES\n(%s)" % ', '.join([
-            ':%s' % k for k in self.Model.__columns__])
-        q += ";"
+        if type(data) is not dict:
+            raise RuntimeError("invalid data type, dict required")
+
+        attrs = list(data.keys())
+
+        q = 'INSERT INTO "%s"' % self.Model.__tablename__
+        q += '\n("%s")' % '", "'.join([k for k in attrs])
+        q += '\nVALUES'
+        q += '\n(%s)' % ', '.join([':%s' % k for k in attrs])
+        q += ';'
 
         return self.dbs.execute(q, params=data)
 
     def update(self, data):
+        if type(data) is not dict:
+            raise RuntimeError("invalid data type, dict required")
+
         params = {'%s_1' % k: v for k, v in data.items()}
 
-        q = "UPDATE %s" % self.Model.__tablename__
-        q += "\nSET %s" % ', '.join([
-            '%s=:%s_1' % (k, k) for k in data.keys()])
+        q = 'UPDATE "%s"' % self.Model.__tablename__
+        q += '\nSET %s' % ', '.join([
+            '"%s"=:%s_1' % (k, k) for k in data.keys()])
         if self._filters:
-            q += "\nWHERE %s" % self._filters
+            q += '\nWHERE %s' % self._filters
             if self._filterparams:
                 if type(self._filterparams) is not dict:
                     raise RuntimeError(
-                        "invalid filter params data type, " +
-                        "must be dict type to use with update")
+                        "invalid filter params data type, dict required")
                 params.update(self._filterparams)
-        q += ";"
+        q += ';'
 
         self.dbs.execute(q, params=params)
         return self.dbs.rowcount()
 
     def delete(self):
-        q = "DELETE FROM %s" % self.Model.__tablename__
+        q = 'DELETE FROM "%s"' % self.Model.__tablename__
         if self._filters:
-            q += "\nWHERE %s" % self._filters
-        q += ";"
+            q += '\nWHERE %s' % self._filters
+        q += ';'
 
         self.dbs.execute(q, params=self._filterparams)
         return self.dbs.rowcount()
@@ -333,25 +345,29 @@ class _Session(object):
         self.connection.row_factory = sqlite3.Row
 
     def close(self):
-        if self.debug >= 4:
-            global _logger
-            _logger.debug("(%s) close connection" % self.database)
         if self.connection:
+            if self.debug >= 4:
+                global _logger
+                _logger.debug("(%s) close connection" % self.database)
             self.connection.close()
         self.connection = None
 
     def query(self, model):
         return _Query(self, model)
 
-    def execute(self, sql, params=None):
+    def _sql_log(self, sql, params=None):
+        global _logger
         # clean extra newlines with spaces
-        if self.debug >= 4:
-            global _logger
-            sql = re.sub('\n\\s+', '\n', sql).strip()
-            _logger.info("SQL:\n%s\nPARAMS: %s" % (sql, params))
+        sql = re.sub('\n\\s+', '\n', sql).strip()
+        _logger.info("SQL:\n---\n%s\n---" % sql)
+        if params:
+            _logger.info("PARAMS: %s" % params)
 
+    def execute(self, sql, params=None):
         if not self.connection:
             self.connect()
+        if self.debug >= 4:
+            self._sql_log(sql, params=params)
         if not self.cursor:
             self.cursor = self.connection.cursor()
         if params:
@@ -361,14 +377,10 @@ class _Session(object):
         return True
 
     def executescript(self, sql_script):
-        # clean extra newlines with spaces
-        if self.debug >= 4:
-            global _logger
-            sql_script = re.sub('\n\\s+', '\n', sql_script).strip()
-            _logger.info("SQL-SCRIPT:\n%s" % sql_script)
-
         if not self.connection:
             self.connect()
+        if self.debug >= 4:
+            self._sql_log(sql_script)
         if not self.cursor:
             self.cursor = self.connection.cursor()
         self.cursor.executescript(sql_script)
@@ -454,7 +466,8 @@ def init_database(dbh, models):
     # create database structure
     with dbh.session_handler() as dbs:
         for Model in models:
-            dbs.executescript(Model.__create__)
+            dbs.executescript(_sql_create_table(Model))
+            dbs.commit()
 
     # execute migrations
     with dbh.session_handler() as dbs:
@@ -467,3 +480,40 @@ def init_database(dbh, models):
             Model.initial_data(dbs)
 
     return True
+
+
+def _sql_create_table(model):
+    if not model.__table_columns__:
+        return ''
+
+    columns, constraints, indexes = [], [], []
+    for k in model._columns():
+        columns.append('"%s" %s' % (k[0], k[1]))
+        if len(k) <= 2:
+            continue
+
+        if 'PRIMARY' in k[2]:
+            constraints.append('PRIMARY KEY ("%s")' % k[0])
+        elif 'UNIQUE' in k[2] and 'INDEX' not in k[2]:
+            constraints.append('UNIQUE ("%s")' % k[0])
+
+        if 'PRIMARY' in k[2] or 'INDEX' in k[2]:
+            u = 'UNIQUE ' if 'PRIMARY' in k[2] or 'UNIQUE' in k[2] else ''
+            indexes.append(
+                'CREATE %sINDEX IF NOT EXISTS ' % u +
+                '"ix_%s_%s" ' % (model.__tablename__, k[0]) +
+                'ON "%s" ("%s");' % (model.__tablename__, k[0]))
+
+    defs = columns
+    defs.extend(constraints)
+    defs.extend(model._constraints())
+
+    sql = 'CREATE TABLE IF NOT EXISTS "%s" (\n' % model.__tablename__
+    sql += ',\n'.join(defs)
+    if model.__table_args__.get('without_rowid', False):
+        sql += '\n) WITHOUT ROWID;\n'
+    else:
+        sql += '\n);\n'
+    sql += '\n'.join(indexes)
+
+    return sql
