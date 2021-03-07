@@ -2,6 +2,7 @@
 import sys
 import random
 import logging
+from datetime import datetime
 from argparse import ArgumentParser
 from traceback import format_exc
 
@@ -18,9 +19,11 @@ logging.addLevelName(logging.CRITICAL, "FATAL")
 class User(db.BaseModel):
     __tablename__ = 'users'
     __table_columns__ = [
-        ('name', 'VARCHAR(32) NOT NULL'),
-        ('email', 'VARCHAR(256) NOT NULL'),
-        ('age', 'INTEGER NOT NULL'),
+        ('name', 'TEXT NOT NULL'),
+        ('email', 'TEXT'),
+        ('age', 'INTEGER'),
+        ('enable', 'BOOLEAN NOT NULL DEFAULT 0'),
+        ('created', 'DATETIME'),
     ]
 
     @classmethod
@@ -34,6 +37,8 @@ class User(db.BaseModel):
                         'name': 'foobar_%s_%s' % (i, j),
                         'email': 'foobar_%s@domain_%s' % (i, j),
                         'age': 0,
+                        'enable': False,
+                        'created': datetime.now(),
                     })
 
 
@@ -76,6 +81,7 @@ if __name__ == '__main__':
                 'name': 'foobar_NEW',
                 'email': 'foobar_NEW@domain',
                 'age': 0,
+                'enable': True,
             })
             print(usr)
 
@@ -87,6 +93,8 @@ if __name__ == '__main__':
                 print(usr)
                 usr.modify(dbs, {
                     'name': usr.name + '_#',
+                    'enable': not usr.enable,
+                    'created': datetime.now(),
                 })
 
         print("\nFilter & delete entries:")

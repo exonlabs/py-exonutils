@@ -7,10 +7,14 @@ import re
 import uuid
 import logging
 import sqlite3
+from datetime import datetime, date, time
 
 __all__ = []
 
 _logger = logging.getLogger('sqlitedb')
+
+register_adapter = sqlite3.register_adapter
+register_converter = sqlite3.register_converter
 
 
 class BaseModel(object):
@@ -20,7 +24,7 @@ class BaseModel(object):
         # Usage:
         # (colname, definition [, constraint]),
         # ex:
-        # ('name1', 'VARCHAR(32) NOT NULL', 'INDEX UNIQUE'),
+        # ('name1', 'TEXT NOT NULL', 'INDEX UNIQUE'),
     ]
     __table_constraints__ = [
         # ex:
@@ -30,7 +34,10 @@ class BaseModel(object):
 
     def __init__(self, data):
         for k in self._columns():
-            setattr(self, k[0], data[k[0]])
+            try:
+                setattr(self, k[0], data[k[0]])
+            except:
+                setattr(self, k[0], None)
 
     def __repr__(self):
         attrs = [k[0] for k in self._columns()][1:]
@@ -40,7 +47,7 @@ class BaseModel(object):
 
     @classmethod
     def _columns(cls):
-        cols = [('guid', 'VARCHAR(32) NOT NULL', 'PRIMARY')]
+        cols = [('guid', 'TEXT NOT NULL', 'PRIMARY')]
         cols.extend(cls.__table_columns__)
         return cols
 
@@ -517,3 +524,67 @@ def _sql_create_table(model):
     sql += '\n'.join(indexes)
 
     return sql
+
+
+def _bool_adapter(value):
+    return 1 if bool(value) else 0
+
+
+def _bool_converter(value):
+    return bool(int(value))
+
+register_adapter(bool, _bool_adapter)
+register_converter("BOOLEAN", _bool_converter)
+
+
+def _parse_datetime(value):
+    for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S",
+                "%Y-%m-%d", "%H:%M:%S.%f", "%H:%M:%S"):
+        try:
+            return datetime.strptime(value, fmt)
+        except:
+            pass
+    raise ValueError("unconverted datetime format")
+
+
+def _datetime_adapter(value):
+    if value:
+        return value.strftime("%Y-%m-%d %H:%M:%S.%f")
+    return None
+
+
+def _datetime_converter(value):
+    if value:
+        return _parse_datetime(value.decode())
+    return None
+
+
+def _date_adapter(value):
+    if value:
+        return value.strftime("%Y-%m-%d")
+    return None
+
+
+def _date_converter(value):
+    if value:
+        return _parse_datetime(value.decode()).date()
+    return None
+
+
+def _time_adapter(value):
+    if value:
+        return value.strftime("%H:%M:%S.%f")
+    return None
+
+
+def _time_converter(value):
+    if value:
+        return _parse_datetime(value.decode()).time()
+    return None
+
+register_adapter(datetime, _datetime_adapter)
+register_converter("DATETIME", _datetime_converter)
+register_adapter(date, _date_adapter)
+register_converter("DATE", _date_converter)
+register_adapter(time, _time_adapter)
+register_converter("TIME", _time_converter)
