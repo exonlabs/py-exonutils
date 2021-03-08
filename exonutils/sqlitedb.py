@@ -529,6 +529,10 @@ def _sql_create_table(model):
     columns, constraints, indexes = [], [], []
     for k in model._columns():
         columns.append('"%s" %s' % (k[0], k[1]))
+
+        if 'BOOLEAN' in k[1]:
+            constraints.append('CHECK ("%s" IN (0, 1))' % k[0])
+
         if len(k) <= 2:
             continue
 
