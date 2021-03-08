@@ -80,7 +80,7 @@ if __name__ == '__main__':
             usr = User.create(dbs, {
                 'name': 'foobar_NEW',
                 'email': 'foobar_NEW@domain',
-                'age': 0,
+                'age': 4,
                 'enable': True,
             })
             print(usr)
@@ -90,12 +90,12 @@ if __name__ == '__main__':
             users = User.find_all(
                 dbs, "name like 'foobar_2_%%' OR name like 'foobar_4_%%'")
             for usr in users:
-                print(usr)
                 usr.modify(dbs, {
                     'name': usr.name + '_#',
                     'enable': not usr.enable,
                     'created': datetime.now(),
                 })
+                print(usr)
 
         print("\nFilter & delete entries:")
         with dbh.session_handler() as dbs:

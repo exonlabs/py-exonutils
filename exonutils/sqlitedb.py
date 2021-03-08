@@ -5,6 +5,7 @@
 """
 import re
 import uuid
+import copy
 import logging
 import sqlite3
 from datetime import datetime, date, time
@@ -32,18 +33,25 @@ class BaseModel(object):
         # 'FOREIGN KEY (tbl1_id) REFERENCES tbl1 (tbl1_id)',
     ]
 
+    __bind_params__ = {
+        # Usage:
+        # 'attr_name': callable,
+    }
+    __result_values__ = {
+        # Usage:
+        # 'attr_name': callable,
+    }
+
     def __init__(self, data):
+        data = self._result_values(data)
         for k in self._columns():
-            try:
-                setattr(self, k[0], data[k[0]])
-            except:
-                setattr(self, k[0], None)
+            setattr(self, k[0], copy.deepcopy(data.get(k[0])))
 
     def __repr__(self):
-        attrs = [k[0] for k in self._columns()][1:]
         return "%s(%s)" % (
             self.__class__.__name__,
-            ', '.join(['%s=%s' % (a, getattr(self, a)) for a in attrs]))
+            ', '.join(['%s=%s' % (k[0], getattr(self, k[0]))
+                       for k in self._columns()[1:]]))
 
     @classmethod
     def _columns(cls):
@@ -56,9 +64,23 @@ class BaseModel(object):
         return cls.__table_constraints__
 
     @classmethod
+    def _bind_params(cls, data):
+        for attr, fn in cls.__bind_params__.items():
+            if attr in data:
+                data[attr] = fn(data[attr])
+        return data
+
+    @classmethod
+    def _result_values(cls, data):
+        for attr, fn in cls.__result_values__.items():
+            if attr in data:
+                data[attr] = fn(data[attr])
+        return data
+
+    @classmethod
     def _orders(cls):
         # return string 'col1 ASC, col2 DESC ...'
-        cols = [k[0] for k in cls._columns()][1:]
+        cols = [k[0] for k in cls._columns()[1:]]
         if cols:
             return '%s ASC' % cols[0]
         return None
@@ -66,10 +88,15 @@ class BaseModel(object):
     def modify(self, dbs, data, commit=True):
         if 'guid' in data.keys():
             del(data['guid'])
+        data = self._bind_params(data)
         q = dbs.query(self.__class__)
         q.filter_by(guid=self.guid).update(data)
         if commit:
             dbs.commit()
+        # update current instance with new values
+        data = self._result_values(data)
+        for k, v in data.items():
+            setattr(self, k, copy.deepcopy(v))
         return True
 
     def remove(self, dbs, commit=True):
@@ -77,6 +104,9 @@ class BaseModel(object):
         q.filter_by(guid=self.guid).delete()
         if commit:
             dbs.commit()
+        # clean current instance values
+        for k in self._columns():
+            setattr(self, k[0], None)
         return True
 
     @classmethod
@@ -120,10 +150,12 @@ class BaseModel(object):
     @classmethod
     def create(cls, dbs, data, commit=True):
         data['guid'] = uuid.uuid5(uuid.uuid1(), uuid.uuid4().hex).hex
-        obj = cls(data)
+        data = cls._bind_params(data)
         dbs.query(cls).insert(data)
         if commit:
             dbs.commit()
+        # create new object from data
+        obj = cls(data)
         return obj
 
     @classmethod
@@ -133,7 +165,7 @@ class BaseModel(object):
         q = dbs.query(cls)
         if filters:
             q = q.filter(filters)
-        res = q.update(data)
+        res = q.update(cls._bind_params(data))
         if commit:
             dbs.commit()
         return res
@@ -349,7 +381,8 @@ class _Session(object):
             timeout=self.connect_timeout,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         self.connection.isolation_level = None
-        self.connection.row_factory = sqlite3.Row
+        self.connection.row_factory = lambda cur, row: {
+            col[0]: row[idx] for idx, col in enumerate(cur.description)}
 
     def close(self):
         if self.connection:
