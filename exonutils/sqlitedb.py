@@ -364,23 +364,23 @@ class _Query(object):
 
 class _Session(object):
 
-    connect_timeout = 30
-
-    def __init__(self, database, debug=0):
+    def __init__(self, options, debug=0):
         self.debug = debug
-        self.database = database
+        self.options = options
         self.connection = None
         self.cursor = None
 
     def connect(self):
         if self.debug >= 4:
             global _logger
-            _logger.debug("(%s) open connection" % self.database)
+            _logger.debug(
+                "(%s) open connection" % self.options['database'])
         self.connection = sqlite3.connect(
-            self.database,
-            timeout=self.connect_timeout,
+            self.options['database'],
+            timeout=self.options.get('connect_timeout', 30),
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-        self.connection.isolation_level = None
+        self.connection.isolation_level = \
+            self.options.get('isolation_level', None)
         self.connection.row_factory = lambda cur, row: {
             col[0]: row[idx] for idx, col in enumerate(cur.description)}
 
@@ -388,7 +388,8 @@ class _Session(object):
         if self.connection:
             if self.debug >= 4:
                 global _logger
-                _logger.debug("(%s) close connection" % self.database)
+                _logger.debug(
+                    "(%s) close connection" % self.options['database'])
             self.connection.close()
         self.connection = None
 
@@ -449,7 +450,7 @@ class _Session(object):
     def commit(self):
         if self.debug >= 4:
             global _logger
-            _logger.debug("(%s) commit" % self.database)
+            _logger.debug("(%s) commit" % self.options['database'])
         if self.connection:
             self.connection.commit()
             return True
@@ -458,7 +459,7 @@ class _Session(object):
     def rollback(self):
         if self.debug >= 4:
             global _logger
-            _logger.debug("(%s) rollback" % self.database)
+            _logger.debug("(%s) rollback" % self.options['database'])
         if self.connection:
             self.connection.rollback()
             return True
@@ -481,10 +482,18 @@ class DatabaseHandler(object):
 
     def __init__(self, database, debug=0):
         self.debug = debug
-        self.database = database
+        self.options = {
+            'database': database,
+        }
+
+    def init_engine(self, connect_timeout=30):
+        self.options.update({
+            'connect_timeout': connect_timeout,
+            'isolation_level': None,
+        })
 
     def session_factory(self):
-        return _Session(self.database, debug=self.debug)
+        return _Session(self.options, debug=self.debug)
 
     def session_handler(self):
         return SessionHandler(self.session_factory())
