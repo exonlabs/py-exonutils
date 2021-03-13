@@ -4,6 +4,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
+import uuid
 import logging
 from flask import Flask, request, jsonify
 from flask.views import MethodView
@@ -15,8 +16,8 @@ __all__ = ['BaseWebApp', 'BaseRESTWebApp', 'BaseWebView']
 
 class BaseWebApp(object):
 
-    def __init__(self, name, options={}, logger=None, debug=0):
-        self.name = name
+    def __init__(self, name=None, options={}, logger=None, debug=0):
+        self.name = name if name else self.__class__.__name__.lower()
         self.options = options
         self.base_path = ''
         self.tpl_loader = None
@@ -25,7 +26,7 @@ class BaseWebApp(object):
         self.views = []
 
         # webapp logger
-        self.log = logger if logger else logging.getLogger(__name__)
+        self.log = logger if logger else logging.getLogger()
         # webapp requests logger
         self.reqlog = logging.getLogger('%s.requests' % self.log.name)
         self.reqlog.setLevel(logging.INFO)
@@ -61,7 +62,6 @@ class BaseWebApp(object):
 
         # check app options
         if not self.options.get('secret_key', None):
-            import uuid
             self.options['secret_key'] = uuid.uuid5(
                 uuid.uuid1(), uuid.uuid4().hex).hex
         if not self.options.get('max_content_length', None):
@@ -73,11 +73,10 @@ class BaseWebApp(object):
         # force specific app config
         app.config['TRAP_HTTP_EXCEPTIONS'] = True
         app.config['TRAP_BAD_REQUEST_ERRORS'] = True
-        app.config['TEMPLATES_AUTO_RELOAD'] = bool(self.debug >= 3)
 
         # set jinja options
         app.jinja_env.autoescape = True
-        app.jinja_env.auto_reload = app.config['TEMPLATES_AUTO_RELOAD']
+        app.jinja_env.auto_reload = app.config.get('TEMPLATES_AUTO_RELOAD')
         if self.tpl_loader and isinstance(self.tpl_loader, BaseLoader):
             app.jinja_loader = self.tpl_loader
 
@@ -91,6 +90,8 @@ class BaseWebApp(object):
                 return self.response_handler(("Internal Server Error", 500))
 
         # load webapp views
+        if not self.views:
+            raise RuntimeError("No views loaded !!!")
         for V in self.views:
             V._initialize(self, app)
             for url, endpoint in V.routes:

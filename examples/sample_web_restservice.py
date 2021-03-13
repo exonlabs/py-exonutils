@@ -34,21 +34,21 @@ class Res1(BaseWebView):
     routes = [('/res1', 'res1'),
               ('/res1/<guid>', 'res1_1')]
 
-    def get(self, **kw):
+    def get(self, **kwargs):
         self.log.debug(self.__class__.__name__)
-        return kw
+        return kwargs
 
 
 class Res2(BaseWebView):
     routes = [('/res2', 'res2'),
               ('/res2/<guid>', 'res2_1')]
 
-    def get(self, **kw):
+    def get(self, **kwargs):
         self.log.debug(self.__class__.__name__)
         return {'result': self.__class__.__name__}
 
-    def post(self, **kw):
-        return {'kwargs': kw,
+    def post(self, **kwargs):
+        return {'kwargs': kwargs,
                 'req_args': request.args,
                 'req_data': request.data,
                 'req_form': request.form,
@@ -74,11 +74,10 @@ if __name__ == '__main__':
         cfg = {
             'secret_key': "0123456789ABCDEF",
             'max_content_length': 10485760,
-            'templates_auto_reload': bool(args.debug > 0),
+            'templates_auto_reload': bool(args.debug >= 3),
         }
         cls = XMLRESTWebServer if args.xml else BaseRESTWebApp
-        webapp = cls(
-            'SampleRESTSRV', options=cfg, logger=log, debug=args.debug)
+        webapp = cls(options=cfg, logger=log, debug=args.debug)
         webapp.views = [Res1, Res2]
 
         # adjust request logs
@@ -86,8 +85,7 @@ if __name__ == '__main__':
 
         webapp.initialize()
         webapp.create_app().run(
-            host='0.0.0.0',
-            port='8000',
+            host='0.0.0.0', port='8000',
             debug=bool(args.debug >= 1),
             use_reloader=bool(args.debug >= 3))
 

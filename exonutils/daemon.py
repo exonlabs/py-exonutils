@@ -16,13 +16,9 @@ class BaseDaemon(object):
     signals = ['SIGINT', 'SIGTERM', 'SIGQUIT',
                'SIGHUP', 'SIGUSR1', 'SIGUSR2']
 
-    def __init__(self, name, logger=None, debug=0):
+    def __init__(self, name=None, logger=None, debug=0):
         # daemon name
-        if name:
-            self.name = name
-        else:
-            self.name = self.__class__.__name__.lower()
-
+        self.name = name if name else self.__class__.__name__.lower()
         # daemon process title to show in os process table
         self.proctitle = self.name
 
@@ -30,7 +26,7 @@ class BaseDaemon(object):
         self.term_event = threading.Event()
 
         # process logger
-        self.log = logger if logger else logging.getLogger(__name__)
+        self.log = logger if logger else logging.getLogger()
 
         # debug level
         self.debug = debug

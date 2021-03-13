@@ -27,7 +27,7 @@ class IndexView(BaseWebView):
         log = logging.getLogger(cls.__name__)
         log.info("initializing")
 
-    def get(self, **kw):
+    def get(self, **kwargs):
         self.log.debug(self.__class__.__name__)
         return self.__class__.__name__
 
@@ -40,7 +40,7 @@ class HomeView(BaseWebView):
         log = logging.getLogger(cls.__name__)
         log.info("initializing")
 
-    def get(self, **kw):
+    def get(self, **kwargs):
         self.log.debug(self.__class__.__name__)
         return self.__class__.__name__
 
@@ -61,10 +61,9 @@ if __name__ == '__main__':
         cfg = {
             'secret_key': "0123456789ABCDEF",
             'max_content_length': 10485760,
-            'templates_auto_reload': bool(args.debug > 0),
+            'templates_auto_reload': bool(args.debug >= 3),
         }
-        webapp = BaseWebApp(
-            'SamplePortal', options=cfg, logger=log, debug=args.debug)
+        webapp = BaseWebApp(options=cfg, logger=log, debug=args.debug)
         webapp.views = [IndexView, HomeView]
 
         # adjust request logs
@@ -72,8 +71,7 @@ if __name__ == '__main__':
 
         webapp.initialize()
         webapp.create_app().run(
-            host='0.0.0.0',
-            port='8000',
+            host='0.0.0.0', port='8000',
             debug=bool(args.debug >= 1),
             use_reloader=bool(args.debug >= 3))
 

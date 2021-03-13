@@ -59,7 +59,7 @@ if __name__ == '__main__':
         if args.debug > 0:
             log.setLevel(logging.DEBUG)
 
-        p = SampleDaemon(None, logger=log, debug=args.debug)
+        p = SampleDaemon(logger=log, debug=args.debug)
         p.start()
 
     except Exception:

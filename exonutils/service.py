@@ -17,11 +17,9 @@ class BaseService(BaseDaemon):
     # interval in sec to check for tasks
     check_interval = 5
 
-    def __init__(self, name, logger=None, debug=0):
-        if not logger:
-            logger = logging.getLogger(__name__)
+    def __init__(self, name=None, logger=None, debug=0):
         super(BaseService, self).__init__(
-            name, logger=logger, debug=debug)
+            name=name, logger=logger, debug=debug)
 
         # service tasks list
         self.tasks = []
@@ -88,15 +86,14 @@ class BaseServiceTask(threading.Thread):
         super(BaseServiceTask, self).__init__(
             name=self.__class__.__name__)
 
-        # task logger
-        self.log = logging.getLogger(self.name)
-        self.log.parent = service.log
-
         # service terminate event
         self.service_term_event = service.term_event
         # task terminate event
         self.term_event = threading.Event()
 
+        # task logger
+        self.log = logging.getLogger(self.name)
+        self.log.parent = service.log
         # debug level
         self.debug = service.debug
 
