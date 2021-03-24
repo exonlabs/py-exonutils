@@ -8,6 +8,7 @@ import uuid
 import copy
 import logging
 import sqlite3
+from time import sleep
 from datetime import datetime, date, time
 
 __all__ = []
@@ -411,10 +412,18 @@ class _Session(object):
             self._sql_log(sql, params=params)
         if not self.cursor:
             self.cursor = self.connection.cursor()
-        if params:
-            self.cursor.execute(sql, params)
+        for i in range(10):
+            try:
+                if params:
+                    self.cursor.execute(sql, params)
+                else:
+                    self.cursor.execute(sql)
+                break
+            except Exception as e:
+                err = str(e)
+                sleep(0.5)
         else:
-            self.cursor.execute(sql)
+            raise RuntimeError(err)
         return True
 
     def executescript(self, sql_script):
@@ -424,7 +433,15 @@ class _Session(object):
             self._sql_log(sql_script)
         if not self.cursor:
             self.cursor = self.connection.cursor()
-        self.cursor.executescript(sql_script)
+        for i in range(10):
+            try:
+                self.cursor.executescript(sql_script)
+                break
+            except Exception as e:
+                err = str(e)
+                sleep(0.5)
+        else:
+            raise RuntimeError(err)
         return True
 
     def fetchone(self):
