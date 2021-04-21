@@ -24,6 +24,9 @@ class BaseService(BaseDaemon):
         # service tasks list
         self.tasks = []
 
+        # suspended tasks list
+        self._suspended = []
+
         # runtime threads buffer
         self._threads = dict()
 
@@ -45,17 +48,20 @@ class BaseService(BaseDaemon):
         for T in self.tasks:
             try:
                 # check and clean dead tasks threads
-                thrd = self._threads.get(T.__name__, None)
-                if thrd and not thrd.is_alive():
+                t = self._threads.get(T.__name__, None)
+                if t and not t.is_alive():
                     del(self._threads[T.__name__])
-                    self.log.debug("cleaned dead <TASK:%s>" % T.__name__)
+                    self.log.warning("found dead <TASK:%s>" % T.__name__)
 
-                # start new task thread
-                if T.__name__ not in self._threads:
-                    self.log.debug("starting <TASK:%s>" % T.__name__)
-                    t = T(self)
-                    t.start()
-                    self._threads[T.__name__] = t
+                # stop suspended task
+                if T.__name__ in self._threads and \
+                        T.__name__ in self._suspended:
+                    self.stop_task(T.__name__)
+
+                # start new task
+                if T.__name__ not in self._threads and \
+                        T.__name__ not in self._suspended:
+                    self.start_task(T.__name__)
 
             except Exception:
                 self.log.error(format_exc().strip())
@@ -79,6 +85,50 @@ class BaseService(BaseDaemon):
 
         self.log.info("exit")
 
+    def get_task(self, name):
+        for T in self.tasks:
+            if name == T.__name__:
+                return T
+        return None
+
+    def start_task(self, name):
+        t_cls = self.get_task(name)
+        if not t_cls:
+            self.log.warning("invalid task name: %s" % name)
+            return False
+
+        if name in self._suspended:
+            self._suspended.remove(name)
+
+        if name not in self._threads:
+            self.log.info("starting <TASK:%s>" % name)
+            t = t_cls(self)
+            t.start()
+            self._threads[name] = t
+
+        return True
+
+    def stop_task(self, name, suspend=False):
+        t_cls = self.get_task(name)
+        if not t_cls:
+            self.log.warning("invalid task name: %s" % name)
+            return False
+
+        if suspend and name not in self._suspended:
+            self._suspended.append(name)
+
+        if name in self._threads:
+            self.log.info("stopping <TASK:%s>" % name)
+            self._threads[name].stop()
+            del(self._threads[name])
+
+        return True
+
+    def restart_task(self, name):
+        if not self.stop_task(name):
+            return False
+        return self.start_task(name)
+
 
 class BaseServiceTask(threading.Thread):
 
@@ -86,16 +136,17 @@ class BaseServiceTask(threading.Thread):
         super(BaseServiceTask, self).__init__(
             name=self.__class__.__name__)
 
-        # service terminate event
-        self.service_term_event = service.term_event
+        # service instance
+        self.service = service
+
         # task terminate event
         self.term_event = threading.Event()
 
         # task logger
         self.log = logging.getLogger(self.name)
-        self.log.parent = service.log
+        self.log.parent = self.service.log
         # debug level
-        self.debug = service.debug
+        self.debug = self.service.debug
 
     def initialize(self):
         pass
@@ -124,9 +175,6 @@ class BaseServiceTask(threading.Thread):
 
     def stop(self):
         self.term_event.set()
-
-    def stop_service(self):
-        self.service_term_event.set()
 
     def sleep(self, timeout):
         self.term_event.wait(timeout=timeout)

@@ -25,6 +25,16 @@ class Task1(BaseServiceTask):
         global counter
         counter += 1
         self.log.info("new count = %s" % counter)
+
+        if counter == 5:
+            self.log.info(
+                "suspend <%s> at count: %s" % (Task2.__name__, counter))
+            self.service.stop_task(Task2.__name__, suspend=True)
+        elif counter == 10:
+            self.log.info(
+                "resume <%s> at count: %s" % (Task2.__name__, counter))
+            self.service.start_task(Task2.__name__)
+
         self.sleep(2)
 
     def terminate(self):
@@ -47,13 +57,13 @@ class Task2(BaseServiceTask):
         global counter
         self.log.info("monitoring count = %s" % counter)
 
-        if counter == 5:
+        if counter == 15:
             self.log.info("stopping myself at count = %s" % counter)
             self.stop()
 
-        if counter >= 15:
+        if counter >= 20:
             self.log.info("stopping service at count = %s" % counter)
-            self.stop_service()
+            self.service.stop()
 
         self.sleep(1)
 
