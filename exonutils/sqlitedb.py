@@ -412,7 +412,7 @@ class _Session(object):
             self._sql_log(sql, params=params)
         if not self.cursor:
             self.cursor = self.connection.cursor()
-        for i in range(10):
+        for i in range(self.options['retry']):
             try:
                 if params:
                     self.cursor.execute(sql, params)
@@ -421,7 +421,7 @@ class _Session(object):
                 break
             except Exception as e:
                 err = str(e)
-                sleep(0.5)
+                sleep(self.options['retry_delay'])
         else:
             raise RuntimeError(err)
         return True
@@ -433,13 +433,13 @@ class _Session(object):
             self._sql_log(sql_script)
         if not self.cursor:
             self.cursor = self.connection.cursor()
-        for i in range(10):
+        for i in range(self.options['retry']):
             try:
                 self.cursor.executescript(sql_script)
                 break
             except Exception as e:
                 err = str(e)
-                sleep(0.5)
+                sleep(self.options['retry_delay'])
         else:
             raise RuntimeError(err)
         return True
@@ -497,10 +497,12 @@ class SessionHandler(object):
 
 class DatabaseHandler(object):
 
-    def __init__(self, database, debug=0):
+    def __init__(self, database, debug=0, retry=10, retry_delay=0.3):
         self.debug = debug
         self.options = {
             'database': database,
+            'retry': retry,
+            'retry_delay': retry_delay,
         }
 
     def init_engine(self, connect_timeout=30):
