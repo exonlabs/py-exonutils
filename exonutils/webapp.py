@@ -99,6 +99,12 @@ class BaseWebApp(object):
 
         return app
 
+    def start(self, host='0.0.0.0', port=8000):
+        self.create_app().run(
+            host=host, port=port,
+            debug=bool(self.debug >= 1),
+            use_reloader=bool(self.debug >= 3))
+
 
 class BaseRESTWebApp(BaseWebApp):
 

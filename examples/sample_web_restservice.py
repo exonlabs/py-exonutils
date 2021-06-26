@@ -27,7 +27,7 @@ class XMLRESTWebServer(BaseRESTWebApp):
         for k, v in data.items():
             res += '<param name="%s">%s</param>\n' % (k, v)
         res += '</data>'
-        return res, status, {'Content-Type': 'text/xml'}
+        return res, status, {'Content-Type': 'text/xml; charset=utf-8'}
 
 
 class Res1(BaseWebView):
@@ -84,10 +84,7 @@ if __name__ == '__main__':
         logging.getLogger('werkzeug').parent = webapp.reqlog
 
         webapp.initialize()
-        webapp.create_app().run(
-            host='0.0.0.0', port='8000',
-            debug=bool(args.debug >= 1),
-            use_reloader=bool(args.debug >= 3))
+        webapp.start(host='0.0.0.0', port=8000)
 
     except Exception:
         log.fatal(format_exc())
