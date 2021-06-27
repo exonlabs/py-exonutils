@@ -17,6 +17,9 @@ class BaseService(BaseDaemon):
     # interval in sec to check for tasks
     check_interval = 5
 
+    # delay in sec to wait for tasks threads exit
+    task_exit_delay = 3
+
     def __init__(self, name=None, logger=None, debug=0):
         super(BaseService, self).__init__(
             name=name, logger=logger, debug=debug)
@@ -78,7 +81,7 @@ class BaseService(BaseDaemon):
             self.log.debug("wait all tasks exit")
             for t in self._threads.values():
                 if t.is_alive():
-                    t.join()
+                    t.join(self.task_exit_delay)
 
         except Exception:
             self.log.error(format_exc().strip())
