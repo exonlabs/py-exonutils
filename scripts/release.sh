@@ -9,7 +9,7 @@ RELEASE_TAG=${VERSION}
 echo -e "\n* Releasing: ${RELEASE_TAG}"
 
 # check previous versions tags
-git tag |grep -q "${RELEASE_TAG}" && {
+git tag |grep -wq "${RELEASE_TAG}" && {
     echo -e "\n-- Error!! release tag [${RELEASE_TAG}] already exist.\n";
     exit 1;
 }
