@@ -5,11 +5,18 @@
 """
 import os
 import uuid
+import signal
 import logging
 from flask import Flask, request, jsonify
 from flask.views import MethodView
 from jinja2 import BaseLoader
 from traceback import format_exc
+
+try:
+    import colorama
+    colorama.init()
+except ImportError:
+    pass
 
 __all__ = ['BaseWebApp', 'BaseRESTWebApp', 'BaseWebView']
 
@@ -99,11 +106,20 @@ class BaseWebApp(object):
 
         return app
 
-    def start(self, host='0.0.0.0', port=8000):
+    def start(self, host, port):
+        # adjust request logs
+        logging.getLogger('werkzeug').parent = self.reqlog
+
+        # process PID
+        self.root_pid = os.getpid()
+
         self.create_app().run(
             host=host, port=port,
             debug=bool(self.debug >= 1),
             use_reloader=bool(self.debug >= 3))
+
+    def stop(self):
+        os.kill(self.root_pid, signal.SIGTERM)
 
 
 class BaseRESTWebApp(BaseWebApp):
@@ -130,6 +146,7 @@ class BaseWebView(MethodView):
 
     def __init__(self, webapp):
         self.name = self.__class__.__name__
+        self.webapp = webapp
         self.response_handler = webapp.response_handler
 
         # view logger

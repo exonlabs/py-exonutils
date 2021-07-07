@@ -3,15 +3,8 @@ import sys
 import logging
 from argparse import ArgumentParser
 from traceback import format_exc
-from flask import request
 
 from exonutils.webapp import BaseWebApp, BaseWebView
-
-try:
-    import colorama
-    colorama.init()
-except ImportError:
-    pass
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
@@ -50,7 +43,7 @@ class ExitView(BaseWebView):
     routes = [('/exit', 'exit')]
 
     def get(self, **kwargs):
-        request.environ.get('werkzeug.server.shutdown')()
+        self.webapp.stop()
         return ''
 
 
@@ -73,13 +66,12 @@ if __name__ == '__main__':
             'templates_auto_reload': bool(args.debug >= 3),
         }
         webapp = BaseWebApp(options=cfg, logger=log, debug=args.debug)
-        webapp.views = [IndexView, HomeView, ExitView]
-
-        # adjust request logs
-        logging.getLogger('werkzeug').parent = webapp.reqlog
-
+        webapp.views = [
+            IndexView, HomeView,
+            ExitView,
+        ]
         webapp.initialize()
-        webapp.start(host='0.0.0.0', port=8000)
+        webapp.start('0.0.0.0', 8000)
 
     except Exception:
         log.fatal(format_exc())

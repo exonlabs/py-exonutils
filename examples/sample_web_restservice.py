@@ -7,12 +7,6 @@ from traceback import format_exc
 
 from exonutils.webapp import BaseRESTWebApp, BaseWebView
 
-try:
-    import colorama
-    colorama.init()
-except ImportError:
-    pass
-
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
     format='%(asctime)s %(levelname)-5.5s [%(name)s] %(message)s')
@@ -23,11 +17,16 @@ logging.addLevelName(logging.CRITICAL, "FATAL")
 class XMLRESTWebServer(BaseRESTWebApp):
 
     def response_parser(self, data, status):
+        headers = {
+            'Content-Type': 'text/xml; charset=utf-8',
+        }
+
         res = '<?xml version="1.0" encoding="UTF-8"?>\n<data>\n'
         for k, v in data.items():
             res += '<param name="%s">%s</param>\n' % (k, v)
         res += '</data>'
-        return res, status, {'Content-Type': 'text/xml; charset=utf-8'}
+
+        return res, status, headers
 
 
 class Res1(BaseWebView):
@@ -45,14 +44,18 @@ class Res2(BaseWebView):
 
     def get(self, **kwargs):
         self.log.debug(self.__class__.__name__)
-        return {'result': self.__class__.__name__}
+        return {
+            'result': self.__class__.__name__,
+        }
 
     def post(self, **kwargs):
-        return {'kwargs': kwargs,
-                'req_args': request.args,
-                'req_data': request.data,
-                'req_form': request.form,
-                'req_json': request.json}
+        return {
+            'kwargs': kwargs,
+            'req_args': request.args,
+            'req_data': request.data,
+            'req_form': request.form,
+            'req_json': request.json,
+        }
 
 
 if __name__ == '__main__':
@@ -78,13 +81,11 @@ if __name__ == '__main__':
         }
         cls = XMLRESTWebServer if args.xml else BaseRESTWebApp
         webapp = cls(options=cfg, logger=log, debug=args.debug)
-        webapp.views = [Res1, Res2]
-
-        # adjust request logs
-        logging.getLogger('werkzeug').parent = webapp.reqlog
-
+        webapp.views = [
+            Res1, Res2,
+        ]
         webapp.initialize()
-        webapp.start(host='0.0.0.0', port=8000)
+        webapp.start('0.0.0.0', 8000)
 
     except Exception:
         log.fatal(format_exc())
