@@ -23,9 +23,11 @@ __all__ = ['BaseWebApp', 'BaseRESTWebApp', 'BaseWebView']
 
 class BaseWebApp(object):
 
-    def __init__(self, name=None, options={}, logger=None, debug=0):
+    def __init__(self, name=None, options={}, logger=None,
+                 req_logger=None, debug=0):
         self.name = name if name else self.__class__.__name__.lower()
         self.options = options
+        self.debug = debug
         self.base_path = ''
         self.tpl_loader = None
 
@@ -35,12 +37,12 @@ class BaseWebApp(object):
         # webapp logger
         self.log = logger if logger else logging.getLogger()
         # webapp requests logger
-        self.reqlog = logging.getLogger('%s.requests' % self.log.name)
+        self.reqlog = req_logger if req_logger else \
+            logging.getLogger('%s.requests' % self.log.name)
         self.reqlog.setLevel(logging.INFO)
         self.reqlog.propagate = False
-
-        # debug level
-        self.debug = debug
+        if not self.reqlog.handlers:
+            self.reqlog.handlers = [logging.NullHandler()]
 
     def initialize(self):
         self.log.info("Initializing")
@@ -61,25 +63,24 @@ class BaseWebApp(object):
         return result
 
     def create_app(self):
+        # check and adjust app options
+        if not self.options.get('secret_key', None):
+            self.options['secret_key'] = uuid.uuid5(
+                uuid.uuid1(), uuid.uuid4().hex).hex
+        if not self.options.get('max_content_length', None):
+            self.options['max_content_length'] = 10485760  # 10 MiB
+        self.options['trap_http_exceptions'] = True
+        self.options['trap_bad_request_errors'] = True
+
         # create flask app
         app = Flask(
             self.name,
             template_folder=os.path.join(self.base_path, 'templates'),
             static_folder=os.path.join(self.base_path, 'static'))
 
-        # check app options
-        if not self.options.get('secret_key', None):
-            self.options['secret_key'] = uuid.uuid5(
-                uuid.uuid1(), uuid.uuid4().hex).hex
-        if not self.options.get('max_content_length', None):
-            self.options['max_content_length'] = 10485760  # 10 MiB
-
         # update app config from options
         for k, v in self.options.items():
             app.config[k.upper()] = v
-        # force specific app config
-        app.config['TRAP_HTTP_EXCEPTIONS'] = True
-        app.config['TRAP_BAD_REQUEST_ERRORS'] = True
 
         # set jinja options
         app.jinja_env.autoescape = True
