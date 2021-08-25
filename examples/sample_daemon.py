@@ -47,8 +47,8 @@ class SampleDaemon(BaseDaemon):
 
 
 if __name__ == '__main__':
-    log = logging.getLogger()
-    log.name = 'main'
+    logger = logging.getLogger()
+    logger.name = 'main'
     try:
         pr = ArgumentParser(prog=None)
         pr.add_argument(
@@ -57,11 +57,11 @@ if __name__ == '__main__':
         args = pr.parse_args()
 
         if args.debug > 0:
-            log.setLevel(logging.DEBUG)
+            logger.setLevel(logging.DEBUG)
 
-        p = SampleDaemon(logger=log, debug=args.debug)
+        p = SampleDaemon(logger=logger, debug=args.debug)
         p.start()
 
     except Exception:
-        log.fatal(format_exc())
+        logger.fatal(format_exc())
         sys.exit(1)

@@ -17,8 +17,8 @@ CFG_FILE = os.path.join(tempfile.gettempdir(), 'sample_config')
 
 
 if __name__ == '__main__':
-    log = logging.getLogger()
-    log.name = 'FileConfig'
+    logger = logging.getLogger()
+    logger.name = 'FileConfig'
     try:
         pr = ArgumentParser(prog=None)
         pr.add_argument('-x', dest='debug', action='store_true',
@@ -30,7 +30,7 @@ if __name__ == '__main__':
         args = pr.parse_args()
 
         if args.debug:
-            log.setLevel(logging.DEBUG)
+            logger.setLevel(logging.DEBUG)
 
         if args.pickle:
             FileConfigClass = PickleFileConfig
@@ -66,10 +66,7 @@ if __name__ == '__main__':
             cfg.save()
             print("\n- config saved")
             print("-" * 50)
-            try:
-                print(cfg.dump().decode())
-            except:
-                print(cfg.dump())
+            print(cfg.dump())
             print("-" * 50)
 
         cfg = FileConfigClass(CFG_FILE)
@@ -85,5 +82,5 @@ if __name__ == '__main__':
         cfg.purge()
 
     except Exception:
-        log.fatal(format_exc())
+        logger.fatal(format_exc())
         sys.exit(1)

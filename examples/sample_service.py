@@ -72,8 +72,8 @@ class Task2(BaseServiceTask):
 
 
 if __name__ == '__main__':
-    log = logging.getLogger()
-    log.name = 'main'
+    logger = logging.getLogger()
+    logger.name = 'main'
     try:
         pr = ArgumentParser(prog=None)
         pr.add_argument(
@@ -82,12 +82,12 @@ if __name__ == '__main__':
         args = pr.parse_args()
 
         if args.debug > 0:
-            log.setLevel(logging.DEBUG)
+            logger.setLevel(logging.DEBUG)
 
-        srv = BaseService(logger=log, debug=args.debug)
+        srv = BaseService(logger=logger, debug=args.debug)
         srv.tasks = [Task1, Task2]
         srv.start()
 
     except Exception:
-        log.fatal(format_exc())
+        logger.fatal(format_exc())
         sys.exit(1)

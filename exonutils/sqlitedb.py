@@ -208,13 +208,11 @@ class _Query(object):
         self._offset = None
 
     def filter(self, filters):
-        if type(filters) is str:
-            self._filters = filters
-        elif type(filters) is list:
+        if type(filters) is list:
             self._filters = filters[0]
             self._filterparams = filters[1]
         else:
-            raise RuntimeError("unsupported filters type")
+            self._filters = filters
         return self
 
     def filter_by(self, **kwargs):

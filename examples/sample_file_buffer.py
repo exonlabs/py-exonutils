@@ -47,12 +47,12 @@ class Task2(BaseServiceTask):
         self.sleep(1)
 
     def terminate(self):
-        log.info("terminating task")
+        self.log.info("terminating task")
 
 
 if __name__ == '__main__':
-    log = logging.getLogger()
-    log.name = 'FileBuffer'
+    logger = logging.getLogger()
+    logger.name = 'FileBuffer'
     try:
         pr = ArgumentParser(prog=None)
         pr.add_argument('-x', dest='debug', action='store_true',
@@ -60,12 +60,12 @@ if __name__ == '__main__':
         args = pr.parse_args()
 
         if args.debug:
-            log.setLevel(logging.DEBUG)
+            logger.setLevel(logging.DEBUG)
 
-        s = BaseService('FileBuffer', logger=log)
+        s = BaseService('FileBuffer', logger=logger)
         s.tasks = [Task1, Task2]
         s.start()
 
     except Exception:
-        log.fatal(format_exc())
+        logger.fatal(format_exc())
         sys.exit(1)

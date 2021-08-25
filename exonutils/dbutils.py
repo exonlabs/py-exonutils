@@ -20,16 +20,18 @@ def interactive_config(backends=None, defaults={}):
     default_password = defaults.get('password', None)
 
     cfg = {}
-    if type(backends) is str:
-        cfg['backend'] = backends
-    elif type(backends) is list and len(backends) == 1:
-        cfg['backend'] = backends[0]
+
+    if not backends:
+        backends = DB_BACKENDS
+    if type(backends) is list:
+        if len(backends) == 1:
+            cfg['backend'] = backends[0]
+        else:
+            cfg['backend'] = Input.select(
+                "Select db backend", backends,
+                default=default_backend, required=True)
     else:
-        if not backends or type(backends) is not list:
-            backends = DB_BACKENDS
-        cfg['backend'] = Input.select(
-            "Select db backend", backends,
-            default=default_backend, required=True)
+        cfg['backend'] = backends
 
     if cfg['backend'] == 'sqlite':
         cfg['database'] = Input.get(
@@ -42,7 +44,7 @@ def interactive_config(backends=None, defaults={}):
                 default_port = 3306
 
         cfg['database'] = Input.get(
-            "Enter db name", default=default_database, required=True)
+            "Enter db name", required=True)
         cfg['host'] = Input.get(
             "Enter db host", default=default_host, required=True)
         cfg['port'] = Input.number(

@@ -59,8 +59,13 @@ class Res2(BaseWebView):
 
 
 if __name__ == '__main__':
-    log = logging.getLogger()
-    log.name = 'main'
+    logger = logging.getLogger()
+    logger.name = 'main'
+
+    # web requests logger
+    reqlog = logging.getLogger('%s.requests' % logger.name)
+    reqlog.handlers = [logging.StreamHandler(sys.stdout)]
+
     try:
         pr = ArgumentParser(prog=None)
         pr.add_argument(
@@ -72,7 +77,7 @@ if __name__ == '__main__':
         args = pr.parse_args()
 
         if args.debug > 0:
-            log.setLevel(logging.DEBUG)
+            logger.setLevel(logging.DEBUG)
 
         cfg = {
             'secret_key': "0123456789ABCDEF",
@@ -80,7 +85,7 @@ if __name__ == '__main__':
             'templates_auto_reload': bool(args.debug >= 3),
         }
         cls = XMLRESTWebServer if args.xml else BaseRESTWebApp
-        webapp = cls(options=cfg, logger=log, debug=args.debug)
+        webapp = cls(options=cfg, logger=logger, debug=args.debug)
         webapp.views = [
             Res1, Res2,
         ]
@@ -88,5 +93,5 @@ if __name__ == '__main__':
         webapp.start('0.0.0.0', 8000)
 
     except Exception:
-        log.fatal(format_exc())
+        logger.fatal(format_exc())
         sys.exit(1)
