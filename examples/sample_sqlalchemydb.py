@@ -22,7 +22,7 @@ class User(db.BaseModel):
     name = sa.Column(
         sa.Unicode(32), nullable=False)
     email = sa.Column(
-        sa.Unicode(256), nullable=False, default='')
+        sa.Unicode(256), nullable=False, default=u'')
     age = sa.Column(
         sa.Integer, nullable=False, default=0)
 
@@ -30,12 +30,12 @@ class User(db.BaseModel):
     def initial_data(cls, dbs):
         for i in range(5):
             users = cls.find_all(
-                dbs, (cls.name.like('foobar_%s_%%' % i),))
+                dbs, (cls.name.like(u'foobar_%s_%%' % i),))
             if not users:
                 for j in range(2):
                     cls.create(dbs, {
-                        'name': 'foobar_%s_%s' % (i, j),
-                        'email': 'foobar_%s@domain_%s' % (i, j),
+                        'name': u'foobar_%s_%s' % (i, j),
+                        'email': u'foobar_%s@domain_%s' % (i, j),
                         'age': 0,
                     })
 
@@ -82,8 +82,8 @@ if __name__ == '__main__':
         print("\nCreate new entries:")
         with dbh.session_handler() as dbs:
             usr = User.create(dbs, {
-                'name': 'foobar_NEW',
-                'email': 'foobar_NEW@domain',
+                'name': u'foobar_NEW',
+                'email': u'foobar_NEW@domain',
                 'age': 0,
             })
             print(usr)
@@ -92,18 +92,18 @@ if __name__ == '__main__':
         with dbh.session_handler() as dbs:
             users = User.find_all(
                 dbs, (sa.or_(
-                    User.name.like('foobar_2_%%'),
-                    User.name.like('foobar_4_%%')),))
+                    User.name.like(u'foobar_2_%%'),
+                    User.name.like(u'foobar_4_%%')),))
             for usr in users:
                 print(usr)
                 usr.modify(dbs, {
-                    'name': usr.name + '_#',
+                    'name': usr.name + u'_#',
                 })
 
         print("\nFilter & delete entries:")
         with dbh.session_handler() as dbs:
             users = User.find_all(
-                dbs, (User.name.like('foobar_4_%%_#_#_#'),))
+                dbs, (User.name.like(u'foobar_4_%%_#_#_#'),))
             for usr in users:
                 print(usr)
                 usr.remove(dbs)
@@ -111,7 +111,7 @@ if __name__ == '__main__':
         print("\nUpdate multiple entries:")
         with dbh.session_handler() as dbs:
             res = User.update(
-                dbs, (User.name.like('foobar_0_%%'),), {
+                dbs, (User.name.like(u'foobar_0_%%'),), {
                     'age': random.randint(1, 10),
                 })
             print("Modified rows: %s" % res)
@@ -119,7 +119,7 @@ if __name__ == '__main__':
         print("\nDelete multiple entries:")
         with dbh.session_handler() as dbs:
             res = User.delete(
-                dbs, (User.name.like('foobar_3_%%'),))
+                dbs, (User.name.like(u'foobar_3_%%'),))
             print("Modified rows: %s" % res)
 
         print("\nAll entries after changes:")

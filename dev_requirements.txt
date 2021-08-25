@@ -1,6 +1,6 @@
-colorama>=0.4
-flask>=2.0
-Jinja2>=3.0
-sqlalchemy>=1.4
-alembic>=1.6
-setproctitle>=1.2
+colorama
+flask
+Jinja2
+sqlalchemy
+alembic
+setproctitle

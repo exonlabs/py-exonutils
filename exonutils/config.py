@@ -7,6 +7,7 @@ import os
 import copy
 import pickle
 import json
+from builtins import bytes
 
 __all__ = ['BaseFileConfig', 'PickleFileConfig', 'JsonFileConfig']
 
@@ -93,7 +94,7 @@ class BaseFileConfig(object):
     def dump(self):
         if os.path.exists(self.filepath):
             with open(self.filepath, 'rb') as f:
-                return f.read()
+                return bytes(f.read())
         return None
 
     # list all keys in config
