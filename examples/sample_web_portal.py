@@ -16,10 +16,8 @@ logging.addLevelName(logging.CRITICAL, "FATAL")
 class IndexView(BaseWebView):
     routes = [('/', 'index')]
 
-    @classmethod
-    def initialize(cls, webapp, app):
-        log = logging.getLogger(cls.__name__)
-        log.info("initializing")
+    def initialize(self):
+        self.log.info("initializing")
 
     def get(self, **kwargs):
         self.log.debug(self.__class__.__name__)
@@ -29,10 +27,8 @@ class IndexView(BaseWebView):
 class HomeView(BaseWebView):
     routes = [('/home', 'home')]
 
-    @classmethod
-    def initialize(cls, webapp, app):
-        log = logging.getLogger(cls.__name__)
-        log.info("initializing")
+    def initialize(self):
+        self.log.info("initializing")
 
     def get(self, **kwargs):
         self.log.debug(self.__class__.__name__)
@@ -70,12 +66,10 @@ if __name__ == '__main__':
             'max_content_length': 10485760,
             'templates_auto_reload': bool(args.debug >= 3),
         }
-        webapp = BaseWebApp(options=cfg, logger=logger, debug=args.debug)
-        webapp.views = [
-            IndexView, HomeView,
-            ExitView,
-        ]
+        webapp = BaseWebApp(
+            options=cfg, logger=logger, debug=args.debug)
         webapp.initialize()
+        webapp.load_views(BaseWebView.__subclasses__())
         webapp.start('0.0.0.0', 8000)
 
     except Exception:

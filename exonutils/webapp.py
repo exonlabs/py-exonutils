@@ -8,7 +8,6 @@ import uuid
 import signal
 import logging
 from flask import Flask, request, jsonify
-from flask.views import MethodView
 from jinja2 import BaseLoader
 from traceback import format_exc
 
@@ -30,9 +29,7 @@ class BaseWebApp(object):
         self.debug = debug
         self.base_path = ''
         self.tpl_loader = None
-
-        # webapp views list
-        self.views = []
+        self.app = None
 
         # webapp logger
         self.log = logger if logger else logging.getLogger()
@@ -46,17 +43,22 @@ class BaseWebApp(object):
 
     def initialize(self):
         self.log.info("Initializing")
+        self.app = self.create_app()
 
-        # check websrv views list
-        if not self.views:
-            raise RuntimeError("No views loaded !!!")
-        for V in self.views:
+    def load_views(self, views):
+        # initialize view
+        for V in views:
             if not issubclass(V, BaseWebView):
-                raise RuntimeError("Invalid view: %s" % str(V))
-        # debug views
-        if self.debug >= 2:
-            self.log.debug("Loaded views: (%s)"
-                           % ','.join([V.__name__ for V in self.views]))
+                raise RuntimeError("invalid view: %s" % str(V))
+
+            v = V(self)
+            if hasattr(v, 'initialize'):
+                v.initialize()
+            for url, endpoint in v.routes:
+                self.app.add_url_rule(
+                    url, endpoint=endpoint,
+                    view_func=v.dispatch_request,
+                    methods=v.methods)
 
     # response handler
     def response_handler(self, result):
@@ -97,14 +99,6 @@ class BaseWebApp(object):
                 self.log.error(format_exc().strip())
                 return self.response_handler(("Internal Server Error", 500))
 
-        # load webapp views
-        if not self.views:
-            raise RuntimeError("No views loaded !!!")
-        for V in self.views:
-            V._initialize(self, app)
-            for url, endpoint in V.routes:
-                app.add_url_rule(url, view_func=V.as_view(endpoint, self))
-
         return app
 
     def start(self, host, port):
@@ -114,7 +108,7 @@ class BaseWebApp(object):
         # process PID
         self.root_pid = os.getpid()
 
-        self.create_app().run(
+        self.app.run(
             host=host, port=port,
             debug=bool(self.debug >= 1),
             use_reloader=bool(self.debug >= 3))
@@ -142,61 +136,55 @@ class BaseRESTWebApp(BaseWebApp):
         return self.response_parser(data, code)
 
 
-class BaseWebView(MethodView):
+class BaseWebView(object):
     routes = []
+    methods = ['GET', 'POST']
 
     def __init__(self, webapp):
         self.name = self.__class__.__name__
         self.webapp = webapp
+        self.app = webapp.app
+        self.debug = webapp.debug
         self.response_handler = webapp.response_handler
 
         # view logger
         self.log = logging.getLogger(self.name)
         self.log.parent = webapp.log
 
-        # debug level
-        self.debug = webapp.debug
-
-    @classmethod
-    def _initialize(cls, webapp, app):
-        return cls.initialize(webapp, app)
-
-    @classmethod
-    def initialize(cls, webapp, app):
-        pass
-
-    def _before_request(self):
-        return self.before_request()
-
-    def before_request(self):
-        return None
-
-    def _after_request(self, response):
-        return self.after_request(response)
-
-    def after_request(self, response):
-        return response
+    # def initialize(self):
+    #     pass
 
     def run_request(self, method, *args, **kwargs):
-        return method(*args, **kwargs)
+        if not hasattr(self, method):
+            # use GET method instead of HEAD if no handler
+            if method == 'head' and hasattr(self, 'get'):
+                method = 'get'
+            else:
+                return self.response_handler(
+                    ("Method Not Allowed", 405))
+
+        return getattr(self, method)(*args, **kwargs)
 
     def dispatch_request(self, *args, **kwargs):
-        meth = getattr(self, request.method.lower(), None)
-
-        # use GET method if request method is HEAD and no handler for it
-        if meth is None and request.method == "HEAD":
-            meth = getattr(self, "get", None)
-
-        if meth is None:
-            return self.response_handler(("Method Not Allowed", 405))
-
         # exec before request handlers
-        result = self._before_request()
-        if result is not None:
-            return self.response_handler(result)
+        if hasattr(self, 'before_request'):
+            result = self.before_request()
+            if result is not None:
+                return self.response_handler(result)
 
-        result = self.run_request(meth, *args, **kwargs)
+        result = self.run_request(
+            request.method.lower(), *args, **kwargs)
 
         # exec after request handlers
-        result = self._after_request(result)
+        if hasattr(self, 'after_request'):
+            result = self.after_request(result)
+
         return self.response_handler(result)
+
+    # @classmethod
+    # def before_request(cls):
+    #     return None
+
+    # @classmethod
+    # def after_request(cls, response):
+    #     return response
