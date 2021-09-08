@@ -17,6 +17,7 @@ class Task1(BaseServiceTask):
     def initialize(self):
         self.log.info("initializing writer task")
         self.buff = FileBuffer('SampleBuffer')
+        self.buff.set('counter_old', 0)
 
     def execute(self):
         global counter
@@ -25,6 +26,7 @@ class Task1(BaseServiceTask):
             if counter is None:
                 self.buff.set('counter', 0)
             else:
+                self.buff.set('counter_old', counter)
                 self.buff.set('counter', counter + 1)
         except Exception as e:
             self.log.error(e)
@@ -43,8 +45,9 @@ class Task2(BaseServiceTask):
 
     def execute(self):
         global counter
-        self.log.info("counter = %s" % self.buff.get('counter'))
-        self.sleep(1)
+        self.log.info("buffer data\n%s" % '\n'.join(
+            [" - %s = %s" % (k, v) for k, v in self.buff.items()]))
+        self.sleep(2)
 
     def terminate(self):
         self.log.info("terminating task")

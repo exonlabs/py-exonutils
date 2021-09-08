@@ -50,8 +50,7 @@ class BaseBuffer(object):
 
     # list all items in buffer
     def items(self):
-        return {k: self._read(k)
-                for k in self._list()}
+        return [(k, self._read(k)) for k in self._list()]
 
     # get certain key from buffer
     def get(self, key, default=None):
@@ -90,7 +89,7 @@ class FileBuffer(BaseBuffer):
     # low level list all buffer keys
     def _list(self):
         if os.path.exists(self.base_path):
-            root, dirs, files = os.walk(self.base_path)
+            files = next(os.walk(self.base_path))[2]
             return list(files)
         return []
 
