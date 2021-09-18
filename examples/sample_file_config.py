@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
 import os
 import sys
 import logging
 import tempfile
-from pprint import pprint
 from argparse import ArgumentParser
 from traceback import format_exc
 
@@ -40,8 +40,8 @@ if __name__ == '__main__':
         print("\n* using cfg file: %s" % CFG_FILE)
 
         defaults = {
-            '*key1': 'some value',
-            '*key2': 123,
+            '~key1': 'some value',
+            '~key2': 123,
             'key3': [1, 2, 3],
             'key4': {
                 'a': [1, 2, 3],
@@ -50,18 +50,22 @@ if __name__ == '__main__':
                     '2': 222,
                     '3': {
                         'x': 'xxx',
-                        '*y': 'yyy',
+                        '~y': 'yyy',
                         'z': 'zzz',
                     },
                 },
             },
+            'key7': 'عربي',
+            'key8': u'عربي',
+            'دليل1': 'عربي',
+            '~دليل2': u'عربي',
         }
         print("\n- default config:")
-        pprint(defaults)
+        print(defaults)
 
         if args.init:
             cfg = FileConfigClass(CFG_FILE, defaults=defaults)
-            cfg.set('key4.b.*4', 444)
+            cfg.set('key4.b.~4', 444)
             cfg.purge()
             cfg.save()
             print("\n- config saved")
@@ -72,11 +76,12 @@ if __name__ == '__main__':
         cfg = FileConfigClass(CFG_FILE)
         cfg.set('new_key', 999)
         cfg.set('key4.b.3.t', 'ttt')
+        cfg.set('key4.b.دليل', 'vvv')
 
         print("\n- active config:")
-        pprint(cfg)
-        pprint(cfg.data.keys())
-        pprint(cfg.data)
+        print(cfg)
+        for k in sorted(cfg.keys()):
+            print(k, cfg.get(k))
         print("")
 
         cfg.purge()

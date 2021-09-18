@@ -16,13 +16,13 @@ __all__ = ['BaseFileConfig', 'PickleFileConfig', 'JsonFileConfig']
 class BaseFileConfig(object):
 
     # prefix char for encode/decode dict keys
-    encoding_char = '*'
+    encoding_char = '~'
     # char for dict sub-keys
     subkey_char = '.'
 
     def __init__(self, filepath, defaults=None):
         self.filepath = filepath
-        self.defaults = defaults if type(defaults) is dict else {}
+        self.defaults = defaults or {}
         self.data = {}
 
         self.load()
@@ -41,7 +41,7 @@ class BaseFileConfig(object):
     # low level value encoding
     def _encode(self, value):
         blob = bytearray(pickle.dumps(value))
-        return ''.join(['{:02X}'.format(k) for k in blob]).upper()
+        return ''.join(['{:02X}'.format(k) for k in blob])
 
     # low level value decoding
     def _decode(self, value):
@@ -50,7 +50,7 @@ class BaseFileConfig(object):
     # search and encode dict keys recursively
     def _encode_dict(self, d1):
         for k, v in d1.items():
-            if str(k)[0] == str(self.encoding_char)[0]:
+            if k[0] == self.encoding_char:
                 d1[k] = self._encode(v)
             elif type(v) is dict:
                 d1[k] = self._encode_dict(v)
@@ -59,7 +59,7 @@ class BaseFileConfig(object):
     # search and decode dict keys recursively
     def _decode_dict(self, d1):
         for k, v in d1.items():
-            if str(k)[0] == str(self.encoding_char)[0]:
+            if k[0] == self.encoding_char:
                 d1[k] = self._decode(v)
             elif type(v) is dict:
                 d1[k] = self._decode_dict(v)
@@ -108,11 +108,12 @@ class BaseFileConfig(object):
     # get certain key from config
     def get(self, key, default=None):
         try:
-            k, c = str(key), str(self.subkey_char)[0]
-            if c in k:
-                return eval("self.data['%s']" % k.replace(c, "']['"))
+            if self.subkey_char in key:
+                return eval(
+                    "self.data['%s']"
+                    % key.replace(self.subkey_char, "']['"))
             else:
-                return self.data[k]
+                return self.data[key]
         except:
             pass
         return default
@@ -120,16 +121,15 @@ class BaseFileConfig(object):
     # set certain key in config
     def set(self, key, value):
         try:
-            k, c = str(key), str(self.subkey_char)[0]
-            if c in k:
-                kparts = k.split(c)
+            if self.subkey_char in key:
+                kparts = key.split(self.subkey_char)
                 kparts.reverse()
                 d = {kparts[0]: value}
                 for n in kparts[1:]:
                     d = {n: d}
                 self.data = self._merge_dicts(self.data, d)
             else:
-                self.data[k] = value
+                self.data[key] = value
             return True
         except:
             pass
@@ -138,9 +138,10 @@ class BaseFileConfig(object):
     # delete certain key from config
     def delete(self, key):
         try:
-            k, c = str(key), str(self.subkey_char)[0]
-            if c in k:
-                exec("del(self.data['%s'])" % k.replace(c, "']['"))
+            if self.subkey_char in key:
+                exec(
+                    "del(self.data['%s'])"
+                    % key.replace(self.subkey_char, "']['"))
             else:
                 del(self.data[key])
             return True
