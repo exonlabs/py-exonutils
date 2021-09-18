@@ -75,13 +75,13 @@ class BaseService(BaseDaemon):
     def terminate(self):
         try:
             self.log.info("stopping all tasks")
-            for t in self._threads.values():
-                t.stop()
+            for name in list(self._threads.keys()):
+                self._threads[name].stop()
 
             self.log.debug("wait all tasks exit")
-            for t in self._threads.values():
-                if t.is_alive():
-                    t.join(self.task_exit_delay)
+            for name in list(self._threads.keys()):
+                if self._threads[name].is_alive():
+                    self._threads[name].join(self.task_exit_delay)
 
         except Exception:
             self.log.error(format_exc().strip())
@@ -103,9 +103,10 @@ class BaseService(BaseDaemon):
         if name in self._suspended:
             self._suspended.remove(name)
 
-        if name not in self._threads:
+        if name not in self._threads.keys():
             self.log.info("starting <TASK:%s>" % name)
             t = t_cls(self)
+            t.setDaemon(True)
             t.start()
             self._threads[name] = t
 
@@ -120,7 +121,7 @@ class BaseService(BaseDaemon):
         if suspend and name not in self._suspended:
             self._suspended.append(name)
 
-        if name in self._threads:
+        if name in self._threads.keys():
             self.log.info("stopping <TASK:%s>" % name)
             self._threads[name].stop()
             del(self._threads[name])
