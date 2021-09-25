@@ -2,46 +2,41 @@
 from __future__ import print_function
 import os
 import sys
-import logging
 import tempfile
 from argparse import ArgumentParser
 from traceback import format_exc
 
-from exonutils.config import JsonFileConfig, PickleFileConfig
+from exonutils.config import BlobFileConfig, JsonFileConfig
 
-logging.basicConfig(
-    level=logging.INFO, stream=sys.stdout,
-    format='%(asctime)s [%(name)s] %(levelname)s %(message)s')
-
-CFG_FILE = os.path.join(tempfile.gettempdir(), 'sample_config')
+CFG_FILE = os.path.join(
+    tempfile.gettempdir(), 'sample_config')
 
 
 if __name__ == '__main__':
-    logger = logging.getLogger()
-    logger.name = 'FileConfig'
     try:
         pr = ArgumentParser(prog=None)
-        pr.add_argument('-x', dest='debug', action='store_true',
-                        help='enable debug mode')
-        pr.add_argument('--init', dest='init', action='store_true',
-                        help='initialize config file')
-        pr.add_argument('--pickle', dest='pickle', action='store_true',
-                        help='use pickle for saving config files')
+        pr.add_argument(
+            '--init', dest='init', action='store_true',
+            help='initialize config file')
+        pr.add_argument(
+            '--bincfg', dest='bincfg', action='store_true',
+            help='use binary config files mode')
         args = pr.parse_args()
 
-        if args.debug:
-            logger.setLevel(logging.DEBUG)
-
-        if args.pickle:
-            FileConfigClass = PickleFileConfig
+        if args.bincfg:
+            FileConfig = BlobFileConfig
         else:
-            FileConfigClass = JsonFileConfig
+            FileConfig = JsonFileConfig
 
         print("\n* using cfg file: %s" % CFG_FILE)
 
         defaults = {
             '~key1': 'some value',
-            '~key2': 123,
+            '~key2': {
+                'x': 'xxx',
+                '~y': 'yyy',
+                'z': 'zzz',
+            },
             'key3': [1, 2, 3],
             'key4': {
                 'a': [1, 2, 3],
@@ -61,10 +56,11 @@ if __name__ == '__main__':
             '~دليل2': u'عربي',
         }
         print("\n- default config:")
-        print(defaults)
+        for k in sorted(defaults.keys()):
+            print(k, defaults[k])
 
         if args.init:
-            cfg = FileConfigClass(CFG_FILE, defaults=defaults)
+            cfg = FileConfig(CFG_FILE, defaults=defaults)
             cfg.set('key4.b.~4', 444)
             cfg.purge()
             cfg.save()
@@ -73,7 +69,7 @@ if __name__ == '__main__':
             print(cfg.dump())
             print("-" * 50)
 
-        cfg = FileConfigClass(CFG_FILE)
+        cfg = FileConfig(CFG_FILE)
         cfg.set('new_key', 999)
         cfg.set('key4.b.3.t', 'ttt')
         cfg.set('key4.b.دليل', 'vvv')
@@ -87,5 +83,5 @@ if __name__ == '__main__':
         cfg.purge()
 
     except Exception:
-        logger.fatal(format_exc())
+        print(format_exc())
         sys.exit(1)
