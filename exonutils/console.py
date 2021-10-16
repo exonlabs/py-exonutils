@@ -4,7 +4,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import re
-from builtins import input
 from getpass import getpass
 try:
     import readline

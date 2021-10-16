@@ -21,6 +21,7 @@ setup(
     version=version,
     url='https://bitbucket.org/exonlabs/exonutils',
     author='ExonLabs',
+    author_email='info@exonlabs.net',
     license='BSD',
     description='Common and base utilities for applications.',
     long_description=long_description,
@@ -29,9 +30,8 @@ setup(
     include_package_data=True,
     zip_safe=False,
     platforms='any',
-    python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*',
+    python_requires='>=3.6',
     install_requires=[
-        'future>=0.18 ;python_version<"3.0"',
     ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
@@ -39,7 +39,6 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',

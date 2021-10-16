@@ -8,7 +8,6 @@ import copy
 import pickle
 import json
 import base64
-from builtins import bytes
 
 __all__ = ['BaseFileConfig', 'BlobFileConfig', 'JsonFileConfig']
 
