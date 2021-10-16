@@ -31,7 +31,7 @@ setup(
     platforms='any',
     python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*',
     install_requires=[
-        'future>=0.18',
+        'future>=0.18 ;python_version<"3.0"',
     ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',

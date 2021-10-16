@@ -33,6 +33,7 @@ sed -i "s|^__version__ = \".*|__version__ = \"${BUILD_VER}\"|g" ${PKGNAME}/__ini
 # create packages
 for PYTHON in $(cat PYTHON |xargs) ;do
     echo -e "\n- Building for ${PYTHON}"
+    make clean
     SETUPENV_PATH=../venv_${PYTHON}
     . ${SETUPENV_PATH}/bin/activate
     [ -z "${VIRTUAL_ENV}" ] && {
@@ -49,6 +50,8 @@ if [ ! -z "${VER}" ];then
     echo -e "\n- checking-out repo to master branch ..."
     git checkout master
 fi
+
+make clean
 
 # install latest dev after version bump
 echo -e "\n- install latest dev version ..."

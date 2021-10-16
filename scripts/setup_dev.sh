@@ -5,6 +5,8 @@ cd $(dirname $(readlink -f $0))/..
 for PYTHON in `cat PYTHON |xargs` ;do
     echo -e "\n* Setup dev virtualenv for ${PYTHON}"
 
+    make clean
+
     SETUPENV_PATH=../venv_${PYTHON}
     which ${PYTHON} >> /dev/null || {
         echo -e "\n-- Failed!! ${PYTHON} doesn't exist.\n"; exit 1; }
