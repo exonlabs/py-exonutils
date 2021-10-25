@@ -191,5 +191,5 @@ class JsonFileConfig(BaseFileConfig):
     def dump(self):
         if os.path.exists(self.filepath):
             with open(self.filepath, 'r') as f:
-                return f.read().decode()
+                return f.read()
         return ''
