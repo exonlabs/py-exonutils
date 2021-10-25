@@ -15,7 +15,7 @@ __all__ = ['BaseService', 'BaseServiceTask']
 class BaseService(BaseDaemon):
 
     # interval in sec to check for tasks
-    check_interval = 5
+    task_check_interval = 5
 
     # delay in sec to wait for tasks threads exit
     task_exit_delay = 3
@@ -48,29 +48,10 @@ class BaseService(BaseDaemon):
                            % ','.join([T.__name__ for T in self.tasks]))
 
     def execute(self):
-        for T in self.tasks:
-            try:
-                # check and clean dead tasks threads
-                t = self._threads.get(T.__name__, None)
-                if t and not t.is_alive():
-                    del(self._threads[T.__name__])
-                    self.log.warning("found dead <TASK:%s>" % T.__name__)
-
-                # stop suspended task
-                if T.__name__ in self._threads and \
-                        T.__name__ in self._suspended:
-                    self.stop_task(T.__name__)
-
-                # start new task
-                if T.__name__ not in self._threads and \
-                        T.__name__ not in self._suspended:
-                    self.start_task(T.__name__)
-
-            except Exception:
-                self.log.error(format_exc().strip())
+        self.check_tasks()
 
         # checking threads interval
-        self.sleep(self.check_interval)
+        self.sleep(self.task_check_interval)
 
     def terminate(self):
         try:
@@ -132,6 +113,28 @@ class BaseService(BaseDaemon):
         if not self.stop_task(name):
             return False
         return self.start_task(name)
+
+    def check_tasks(self):
+        for T in self.tasks:
+            try:
+                # check and clean dead tasks threads
+                t = self._threads.get(T.__name__, None)
+                if t and not t.is_alive():
+                    del(self._threads[T.__name__])
+                    self.log.warning("found dead <TASK:%s>" % T.__name__)
+
+                # stop suspended task
+                if T.__name__ in self._threads and \
+                        T.__name__ in self._suspended:
+                    self.stop_task(T.__name__)
+
+                # start new task
+                if T.__name__ not in self._threads and \
+                        T.__name__ not in self._suspended:
+                    self.start_task(T.__name__)
+
+            except Exception:
+                self.log.error(format_exc().strip())
 
 
 class BaseServiceTask(threading.Thread):
