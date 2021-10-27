@@ -40,12 +40,13 @@ class Task1(BaseServiceTask):
     def terminate(self):
         global counter
 
+        self.term_event.clear()
         term_count = counter + 3
-        self.log.info("TERM_EVENT: wait till count = %s" % term_count)
+        self.log.info("wait till count = %s" % term_count)
         while counter < term_count:
-            self.execute()
-
-        self.log.info("terminating")
+            counter += 1
+            self.log.info("new count = %s" % counter)
+            self.sleep(1)
 
 
 class Task2(BaseServiceTask):
@@ -67,8 +68,8 @@ class Task2(BaseServiceTask):
 
         self.sleep(1)
 
-    def terminate(self):
-        self.log.info("terminating")
+    # def terminate(self):
+    #     self.log.info("terminating")
 
 
 if __name__ == '__main__':
@@ -89,5 +90,5 @@ if __name__ == '__main__':
         srv.start()
 
     except Exception:
-        logger.fatal(format_exc())
+        logger.fatal(format_exc().strip())
         sys.exit(1)

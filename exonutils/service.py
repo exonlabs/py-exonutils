@@ -18,7 +18,7 @@ class BaseService(BaseDaemon):
     task_check_interval = 5
 
     # delay in sec to wait for tasks threads exit
-    task_exit_delay = 3
+    task_exit_delay = 5
 
     def __init__(self, name=None, logger=None, debug=0):
         super(BaseService, self).__init__(
@@ -44,8 +44,9 @@ class BaseService(BaseDaemon):
                 raise RuntimeError("Invalid task: %s" % str(T))
         # debug tasks
         if self.debug >= 2:
-            self.log.debug("Loaded tasks: (%s)"
-                           % ','.join([T.__name__ for T in self.tasks]))
+            self.log.debug(
+                "Loaded tasks: (%s)"
+                % ','.join([T.__name__ for T in self.tasks]))
 
     def execute(self):
         self.check_tasks()
@@ -54,20 +55,17 @@ class BaseService(BaseDaemon):
         self.sleep(self.task_check_interval)
 
     def terminate(self):
-        try:
-            self.log.info("stopping all tasks")
-            for name in list(self._threads.keys()):
-                self._threads[name].stop()
+        self.log.debug("wait all tasks exit")
+        for name in list(self._threads.keys()):
+            if self._threads[name].is_alive():
+                self._threads[name].join(self.task_exit_delay)
 
-            self.log.debug("wait all tasks exit")
-            for name in list(self._threads.keys()):
-                if self._threads[name].is_alive():
-                    self._threads[name].join(self.task_exit_delay)
+    def stop(self):
+        self.term_event.set()
 
-        except Exception:
-            self.log.error(format_exc().strip())
-
-        self.log.info("exit")
+        self.log.info("stopping all tasks")
+        for name in list(self._threads.keys()):
+            self._threads[name].stop()
 
     def get_task(self, name):
         for T in self.tasks:
@@ -165,17 +163,26 @@ class BaseServiceTask(threading.Thread):
         pass
 
     def run(self):
-        # initialize task
-        self.initialize()
+        try:
+            # initialize task
+            self.initialize()
+            # run task forever
+            while not self.term_event.is_set():
+                self.execute()
+        except Exception:
+            self.log.error(format_exc().strip())
+        except (KeyboardInterrupt, SystemExit):
+            pass
 
-        # run task forever
-        while not self.term_event.is_set():
-            self.execute()
+        try:
+            # terminate task
+            self.terminate()
+        except Exception:
+            self.log.error(format_exc().strip())
+        except (KeyboardInterrupt, SystemExit):
+            pass
 
-        self.term_event.clear()
-
-        # terminate task
-        self.terminate()
+        self.log.info("terminated")
 
     def start(self):
         super(BaseServiceTask, self).start()
@@ -184,4 +191,5 @@ class BaseServiceTask(threading.Thread):
         self.term_event.set()
 
     def sleep(self, timeout):
-        self.term_event.wait(timeout=timeout)
+        if self.term_event.wait(timeout=timeout):
+            raise SystemExit()

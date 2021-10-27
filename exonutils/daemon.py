@@ -6,6 +6,7 @@
 import signal
 import threading
 import logging
+from traceback import format_exc
 
 __all__ = ['BaseDaemon']
 
@@ -41,17 +42,26 @@ class BaseDaemon(object):
         pass
 
     def run(self):
-        # initialize process
-        self.initialize()
+        try:
+            # initialize process
+            self.initialize()
+            # run process forever untill term event
+            while not self.term_event.is_set():
+                self.execute()
+        except Exception:
+            self.log.error(format_exc().strip())
+        except (KeyboardInterrupt, SystemExit):
+            pass
 
-        # run process forever
-        while not self.term_event.is_set():
-            self.execute()
+        try:
+            # terminate process
+            self.terminate()
+        except Exception:
+            self.log.error(format_exc().strip())
+        except (KeyboardInterrupt, SystemExit):
+            pass
 
-        self.term_event.clear()
-
-        # terminate process
-        self.terminate()
+        self.log.info('exit')
 
     def start(self):
         # set signal handlers
@@ -75,7 +85,8 @@ class BaseDaemon(object):
         self.term_event.set()
 
     def sleep(self, timeout):
-        self.term_event.wait(timeout=timeout)
+        if self.term_event.wait(timeout=timeout):
+            raise SystemExit()
 
     # signal handler dispatcher
     def signal(self, sig, frame):
@@ -85,10 +96,9 @@ class BaseDaemon(object):
             res = [k for k, v in signal.__dict__.iteritems() if v == sig]
             signame = '' if not res else res[0]
 
-        handler = getattr(self, "handle_%s" % signame.lower(), None)
-        if handler:
+        if hasattr(self, "handle_%s" % signame.lower()):
             self.log.info("-- received %s --" % signame)
-            handler()
+            getattr(self, "handle_%s" % signame.lower())()
         else:
             self.log.debug("-- received %s -- (ignoring)" % signame)
 

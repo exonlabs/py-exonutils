@@ -15,32 +15,30 @@ logging.basicConfig(
 class Task1(BaseServiceTask):
 
     def initialize(self):
-        self.log.info("initializing writer task")
+        self.log.info("initializing writer")
         self.buff = FileBuffer('SampleBuffer')
         self.buff.set('counter_old', 0)
 
     def execute(self):
         global counter
         counter = self.buff.get('counter')
-        try:
-            if counter is None:
-                self.buff.set('counter', 0)
-            else:
-                self.buff.set('counter_old', counter)
-                self.buff.set('counter', counter + 1)
-        except Exception as e:
-            self.log.error(e)
+
+        if counter is None:
+            self.buff.set('counter', 0)
+        else:
+            self.buff.set('counter_old', counter)
+            self.buff.set('counter', counter + 1)
+
         self.sleep(5)
 
     def terminate(self):
-        self.log.info("terminating task")
         self.buff.purge()
 
 
 class Task2(BaseServiceTask):
 
     def initialize(self):
-        self.log.info("initializing reader task")
+        self.log.info("initializing reader")
         self.buff = FileBuffer('SampleBuffer')
 
     def execute(self):
@@ -49,13 +47,13 @@ class Task2(BaseServiceTask):
             [" - %s = %s" % (k, v) for k, v in self.buff.items()]))
         self.sleep(2)
 
-    def terminate(self):
-        self.log.info("terminating task")
+    # def terminate(self):
+    #     self.log.info("terminating")
 
 
 if __name__ == '__main__':
     logger = logging.getLogger()
-    logger.name = 'FileBuffer'
+    logger.name = 'main'
     try:
         pr = ArgumentParser(prog=None)
         pr.add_argument('-x', dest='debug', action='store_true',

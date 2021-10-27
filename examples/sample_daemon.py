@@ -20,18 +20,21 @@ class SampleDaemon(BaseDaemon):
         self.counter = 0
 
     def execute(self):
-        try:
-            self.counter += 1
-            self.log.debug("Running: %s ..." % self.counter)
-            if self.counter >= 50:
-                self.log.info("exit process after count = %s" % self.counter)
-                self.stop()
-        except Exception:
-            self.log.fatal(format_exc())
+        self.counter += 1
+        self.log.debug("Running: %s ..." % self.counter)
+        if self.counter >= 50:
+            self.log.info("exit process after count = %s" % self.counter)
+            self.stop()
         self.sleep(2)
 
     def terminate(self):
         self.log.info("Shutting down")
+
+        self.term_event.clear()
+        self.log.info("exit after 5 counts")
+        for i in range(5):
+            self.log.info('count %s' % (i + 1))
+            self.sleep(1)
 
     def handle_sigusr1(self):
         if self.log.level != logging.DEBUG:
@@ -63,5 +66,5 @@ if __name__ == '__main__':
         p.start()
 
     except Exception:
-        logger.fatal(format_exc())
+        logger.fatal(format_exc().strip())
         sys.exit(1)
