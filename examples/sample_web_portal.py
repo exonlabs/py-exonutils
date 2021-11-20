@@ -4,7 +4,7 @@ import logging
 from argparse import ArgumentParser
 from traceback import format_exc
 
-from exonutils.webapp import BaseWebApp, BaseWebView
+from exonutils.webapp import BaseWebSrv, BaseWebView
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
@@ -39,7 +39,7 @@ class ExitView(BaseWebView):
     routes = [('/exit', 'exit')]
 
     def get(self, **kwargs):
-        self.webapp.stop()
+        self.websrv.stop()
         return ''
 
 
@@ -66,11 +66,12 @@ if __name__ == '__main__':
             'max_content_length': 10485760,
             'templates_auto_reload': bool(args.debug >= 3),
         }
-        webapp = BaseWebApp(
+
+        websrv = BaseWebSrv(
             options=cfg, logger=logger, debug=args.debug)
-        webapp.initialize()
-        webapp.load_views(BaseWebView.__subclasses__())
-        webapp.start('0.0.0.0', 8000)
+        websrv.initialize()
+        websrv.load_views(BaseWebView.__subclasses__())
+        websrv.start('0.0.0.0', 8000)
 
     except Exception:
         logger.fatal(format_exc())

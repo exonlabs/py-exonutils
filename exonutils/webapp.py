@@ -17,10 +17,10 @@ try:
 except ImportError:
     pass
 
-__all__ = ['BaseWebApp', 'BaseRESTWebApp', 'BaseWebView']
+__all__ = ['BaseWebSrv', 'BaseRESTWebSrv', 'BaseWebView']
 
 
-class BaseWebApp(object):
+class BaseWebSrv(object):
 
     def __init__(self, name=None, options={}, logger=None,
                  req_logger=None, debug=0):
@@ -31,9 +31,9 @@ class BaseWebApp(object):
         self.tpl_loader = None
         self.app = None
 
-        # webapp logger
+        # websrv logger
         self.log = logger if logger else logging.getLogger()
-        # webapp requests logger
+        # websrv requests logger
         self.reqlog = req_logger if req_logger else \
             logging.getLogger('%s.requests' % self.log.name)
         self.reqlog.setLevel(logging.INFO)
@@ -59,10 +59,6 @@ class BaseWebApp(object):
                     url, endpoint=endpoint,
                     view_func=v.dispatch_request,
                     methods=v.methods)
-
-    # response handler
-    def response_handler(self, result):
-        return result
 
     def create_app(self):
         # check and adjust app options
@@ -94,12 +90,16 @@ class BaseWebApp(object):
         @app.errorhandler(Exception)
         def exception_handler(e):
             if hasattr(e, 'name') and hasattr(e, 'code'):
-                return self.response_handler((e.name, e.code))
+                return self.handle_response((e.name, e.code))
             else:
                 self.log.error(format_exc().strip())
-                return self.response_handler(("Internal Server Error", 500))
+                return self.handle_response(("Internal Server Error", 500))
 
         return app
+
+    # response handler
+    def handle_response(self, result):
+        return result
 
     def start(self, host, port):
         # adjust request logs
@@ -117,13 +117,9 @@ class BaseWebApp(object):
         os.kill(self.root_pid, signal.SIGTERM)
 
 
-class BaseRESTWebApp(BaseWebApp):
+class BaseRESTWebSrv(BaseWebSrv):
 
-    # default response parser is to send JSON data results
-    def response_parser(self, data, status):
-        return (jsonify(**data), status)
-
-    def response_handler(self, response):
+    def handle_response(self, response):
         if type(response) is tuple:
             data, code = response[0], response[1]
         else:
@@ -133,44 +129,35 @@ class BaseRESTWebApp(BaseWebApp):
             key = 'error' if code >= 400 else 'result'
             data = {key: data}
 
-        return self.response_parser(data, code)
+        return self.format_response(data, code)
+
+    # default response parser is to send JSON data results
+    def format_response(self, data, status):
+        return (jsonify(**data), status)
 
 
 class BaseWebView(object):
     routes = []
     methods = ['GET', 'POST']
 
-    def __init__(self, webapp):
+    def __init__(self, websrv):
         self.name = self.__class__.__name__
-        self.webapp = webapp
-        self.app = webapp.app
-        self.debug = webapp.debug
-        self.response_handler = webapp.response_handler
+        self.websrv = websrv
+        self.debug = websrv.debug
 
         # view logger
         self.log = logging.getLogger(self.name)
-        self.log.parent = webapp.log
+        self.log.parent = websrv.log
 
     # def initialize(self):
     #     pass
-
-    def run_request(self, method, *args, **kwargs):
-        if not hasattr(self, method):
-            # use GET method instead of HEAD if no handler
-            if method == 'head' and hasattr(self, 'get'):
-                method = 'get'
-            else:
-                return self.response_handler(
-                    ("Method Not Allowed", 405))
-
-        return getattr(self, method)(*args, **kwargs)
 
     def dispatch_request(self, *args, **kwargs):
         # exec before request handlers
         if hasattr(self, 'before_request'):
             result = self.before_request()
             if result is not None:
-                return self.response_handler(result)
+                return self.websrv.handle_response(result)
 
         result = self.run_request(
             request.method.lower(), *args, **kwargs)
@@ -179,7 +166,18 @@ class BaseWebView(object):
         if hasattr(self, 'after_request'):
             result = self.after_request(result)
 
-        return self.response_handler(result)
+        return self.websrv.handle_response(result)
+
+    def run_request(self, method, *args, **kwargs):
+        if not hasattr(self, method):
+            # use GET method instead of HEAD if no handler
+            if method == 'head' and hasattr(self, 'get'):
+                method = 'get'
+            else:
+                return self.websrv.handle_response(
+                    ("Method Not Allowed", 405))
+
+        return getattr(self, method)(*args, **kwargs)
 
     # @classmethod
     # def before_request(cls):

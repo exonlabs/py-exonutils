@@ -5,7 +5,7 @@ from flask import request
 from argparse import ArgumentParser
 from traceback import format_exc
 
-from exonutils.webapp import BaseRESTWebApp, BaseWebView
+from exonutils.webapp import BaseRESTWebSrv, BaseWebView
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
@@ -14,9 +14,9 @@ logging.addLevelName(logging.WARNING, "WARN")
 logging.addLevelName(logging.CRITICAL, "FATAL")
 
 
-class XMLRESTWebServer(BaseRESTWebApp):
+class XMLRESTWebSrv(BaseRESTWebSrv):
 
-    def response_parser(self, data, status):
+    def format_response(self, data, status):
         headers = {
             'Content-Type': 'text/xml; charset=utf-8',
         }
@@ -51,10 +51,10 @@ class Res2(BaseWebView):
     def post(self, **kwargs):
         return {
             'kwargs': kwargs,
-            'req_args': request.args,
-            'req_data': request.data,
-            'req_form': request.form,
-            'req_json': request.json,
+            'req_args': repr(request.args),
+            'req_data': repr(request.data),
+            'req_form': repr(request.form),
+            'req_json': repr(request.json),
         }
 
 
@@ -84,13 +84,13 @@ if __name__ == '__main__':
             'max_content_length': 10485760,
             'templates_auto_reload': bool(args.debug >= 3),
         }
-        cls = XMLRESTWebServer if args.xml else BaseRESTWebApp
-        webapp = cls(options=cfg, logger=logger, debug=args.debug)
-        webapp.views = [
-            Res1, Res2,
-        ]
-        webapp.initialize()
-        webapp.start('0.0.0.0', 8000)
+
+        cls = XMLRESTWebSrv if args.xml else BaseRESTWebSrv
+        websrv = cls(
+            options=cfg, logger=logger, debug=args.debug)
+        websrv.initialize()
+        websrv.load_views(BaseWebView.__subclasses__())
+        websrv.start('0.0.0.0', 8000)
 
     except Exception:
         logger.fatal(format_exc())
