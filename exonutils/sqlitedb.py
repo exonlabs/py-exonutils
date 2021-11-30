@@ -338,7 +338,9 @@ class _Query(object):
 
         q = 'UPDATE "%s"' % self.Model.__tablename__
         q += '\nSET %s' % ', '.join([
-            '"%s"=:%s_1' % (k, k) for k in data.keys()])
+            '"%s"=%s' % (
+                k, v if type(v) is str and 'CASE' in v else ':%s_1' % k)
+            for k, v in data.items()])
         if self._filters:
             q += '\nWHERE %s' % self._filters
             if self._filterparams:
