@@ -7,7 +7,7 @@
 __all__ = []
 
 # supported DB backends
-DB_BACKENDS = ['sqlite', 'pgsql', 'mysql', 'mariadb']
+DB_BACKENDS = ['sqlite', 'pgsql', 'mysql', 'mssql']
 
 
 def interactive_config(backends=None, defaults={}):
@@ -39,10 +39,12 @@ def interactive_config(backends=None, defaults={}):
             "Enter db path", default=default_database, required=True)
     else:
         if not default_port:
-            if cfg['backend'] in ['pgsql']:
+            if cfg['backend'] == 'pgsql':
                 default_port = 5432
-            elif cfg['backend'] in ['mysql', 'mariadb']:
+            elif cfg['backend'] == 'mysql':
                 default_port = 3306
+            elif cfg['backend'] == 'mssql':
+                default_port = 1433
 
         cfg['database'] = Input.get(
             "Enter db name", required=True)
@@ -69,16 +71,22 @@ def interactive_setup(cfg=None, defaults={}, quiet=False):
     if backend not in DB_BACKENDS:
         raise RuntimeError("invalid backend: %s" % backend)
 
-    database = cfg.get('database', '')
-    if not database:
-        raise RuntimeError("empty database name")
+    # call specefic setup function for each backend
+    eval('interactive_%s_setup' % backend)(cfg, quiet=quiet)
 
-    if backend == 'sqlite':
-        # create db file
-        open(database, 'a').close()
-    else:
-        fn = eval('interactive_%s_setup' % backend)
-        fn(cfg, quiet=quiet)
+
+# sqlite backend setup
+def interactive_sqlite_setup(cfg, quiet=False):
+    import os
+
+    database = cfg.get('database', None)
+    if not database:
+        raise RuntimeError("invalid empty database name")
+
+    # create db file
+    if not os.path.exists(os.path.dirname(database)):
+        os.makedirs(os.path.dirname(database))
+    open(database, 'a').close()
 
 
 # pgsql backend setup
@@ -191,8 +199,8 @@ def interactive_mysql_setup(cfg, quiet=False):
 
     # create connection
     conn = connect(
-        host=host, port=port, user=adm_user, passwd=adm_pass,
-        charset='utf8mb4')
+        host=host, port=port, user=adm_user, password=adm_pass,
+        charset='utf8mb4', connect_timeout=30)
 
     # create database
     cur = conn.cursor()
@@ -222,6 +230,45 @@ def interactive_mysql_setup(cfg, quiet=False):
     conn.close()
 
 
-# mariadb backend setup
-def interactive_mariadb_setup(cfg, quiet=False):
-    interactive_mysql_setup(cfg, quiet=quiet)
+# mssql backend setup
+def interactive_mssql_setup(cfg, quiet=False):
+    err = ''
+    try:
+        from pymssql import connect
+    except ImportError:
+        err = "[pymssql] backend package not installed"
+    if err:
+        raise RuntimeError(err)
+
+    def info(msg):
+        if not quiet:
+            print(msg)
+
+    host = cfg.get('host', None) or 'localhost'
+    port = int(cfg.get('port', None) or 1433)
+
+    database = cfg.get('database', None)
+    if not database:
+        raise RuntimeError("invalid empty database name")
+    username = cfg.get('username', None)
+    if not username:
+        raise RuntimeError("invalid empty database username")
+    password = cfg.get('password', None)
+    if not password:
+        raise RuntimeError("invalid empty database password")
+
+    # create connection
+    conn = connect(
+        host=host, port=port, user=username, password=password,
+        charset='utf8', login_timeout=30)
+
+    # create database
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM sys.databases WHERE name='%s'" % database)
+    if cur.fetchall():
+        info("-- database created --")
+    else:
+        info("-- FAILED!! database doesn't exist on server --")
+
+    cur.close()
+    conn.close()

@@ -164,9 +164,12 @@ class DatabaseHandler(object):
         elif backend == 'pgsql':
             driver = 'postgresql+psycopg2'
             query = {'client_encoding': 'utf8'}
-        elif backend in ['mysql', 'mariadb']:
+        elif backend == 'mysql':
             driver = 'mysql+mysqldb'
             query = {'charset': 'utf8mb4'}
+        elif backend == 'mssql':
+            driver = 'mssql+pymssql'
+            query = {'charset': 'utf8'}
         else:
             raise RuntimeError("invalid backend: %s" % backend)
 
@@ -183,16 +186,24 @@ class DatabaseHandler(object):
             self.engine = sa.create_engine(
                 self.url, poolclass=sa.pool.NullPool)
         else:
-            connect_args = {'connect_timeout': connect_timeout}
             if backend == 'pgsql':
-                connect_args.update({
+                connect_args = {
+                    'connect_timeout': connect_timeout,
                     'options': "-c statement_timeout=%s" % query_timeout,
-                })
-            elif backend in ['mysql', 'mariadb']:
-                connect_args.update({
+                }
+            elif backend == 'mysql':
+                connect_args = {
+                    'connect_timeout': connect_timeout,
                     'read_timeout': query_timeout,
                     'write_timeout': query_timeout,
-                })
+                }
+            elif backend == 'mssql':
+                connect_args = {
+                    'login_timeout': connect_timeout,
+                    'timeout': query_timeout,
+                }
+            else:
+                connect_args = {}
 
             if pool and pool.get('size', 0) > 0:
                 self.engine = sa.create_engine(
