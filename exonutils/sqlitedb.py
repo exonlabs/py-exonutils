@@ -280,7 +280,7 @@ class _Query(object):
         if res:
             return res
 
-        raise RuntimeError("no results found")
+        raise ValueError("no results found")
 
     def one_or_none(self):
         q = 'SELECT * FROM "%s"' % self.Model.__tablename__
@@ -296,7 +296,7 @@ class _Query(object):
         res = self.dbs.fetchall()
         if res:
             if len(res) > 1:
-                raise RuntimeError("multiple entries found")
+                raise ValueError("multiple entries found")
             return self.Model(res[0])
 
         return None
@@ -318,7 +318,7 @@ class _Query(object):
 
     def insert(self, data):
         if type(data) is not dict:
-            raise RuntimeError("invalid data type, dict required")
+            raise ValueError("invalid data type, dict required")
 
         attrs = list(data.keys())
 
@@ -332,7 +332,7 @@ class _Query(object):
 
     def update(self, data):
         if type(data) is not dict:
-            raise RuntimeError("invalid data type, dict required")
+            raise ValueError("invalid data type, dict required")
 
         params = {'%s_1' % k: v for k, v in data.items()}
 
@@ -345,7 +345,7 @@ class _Query(object):
             q += '\nWHERE %s' % self._filters
             if self._filterparams:
                 if type(self._filterparams) is not dict:
-                    raise RuntimeError(
+                    raise ValueError(
                         "invalid filter params data type, dict required")
                 params.update(self._filterparams)
         q += ';'
@@ -371,6 +371,9 @@ class _Session(object):
         self.connection = None
         self.cursor = None
 
+        self.pragma_foreign_keys = \
+            self.options.get('foreign_keys_constraints', True)
+
     def connect(self):
         if self.debug >= 4:
             global _logger
@@ -394,6 +397,14 @@ class _Session(object):
             self.connection.close()
         self.connection = None
 
+    def init_cursor(self):
+        if not self.connection:
+            self.connect()
+        if not self.cursor:
+            self.cursor = self.connection.cursor()
+            if self.pragma_foreign_keys:
+                self.cursor.execute('PRAGMA foreign_keys=ON')
+
     def query(self, model):
         return _Query(self, model)
 
@@ -406,12 +417,11 @@ class _Session(object):
             _logger.info("PARAMS: %s" % params)
 
     def execute(self, sql, params=None):
-        if not self.connection:
-            self.connect()
+        self.init_cursor()
         if self.debug >= 4:
             self._sql_log(sql, params=params)
-        if not self.cursor:
-            self.cursor = self.connection.cursor()
+
+        err = ''
         for i in range(self.options['retry']):
             try:
                 if params:
@@ -419,28 +429,41 @@ class _Session(object):
                 else:
                     self.cursor.execute(sql)
                 break
-            except Exception as e:
+            except ValueError:
+                raise
+            except (sqlite3.IntegrityError, sqlite3.ProgrammingError,
+                    sqlite3.NotSupportedError) as e:
                 err = str(e)
-                sleep(self.options['retry_delay'])
-        else:
-            raise RuntimeError(err)
-        return True
-
-    def executescript(self, sql_script):
-        if not self.connection:
-            self.connect()
-        if self.debug >= 4:
-            self._sql_log(sql_script)
-        if not self.cursor:
-            self.cursor = self.connection.cursor()
-        for i in range(self.options['retry']):
-            try:
-                self.cursor.executescript(sql_script)
                 break
             except Exception as e:
                 err = str(e)
                 sleep(self.options['retry_delay'])
-        else:
+
+        if err:
+            raise RuntimeError(err)
+        return True
+
+    def executescript(self, sql_script):
+        self.init_cursor()
+        if self.debug >= 4:
+            self._sql_log(sql_script)
+
+        err = ''
+        for i in range(self.options['retry']):
+            try:
+                self.cursor.executescript(sql_script)
+                break
+            except ValueError:
+                raise
+            except (sqlite3.IntegrityError, sqlite3.ProgrammingError,
+                    sqlite3.NotSupportedError) as e:
+                err = str(e)
+                break
+            except Exception as e:
+                err = str(e)
+                sleep(self.options['retry_delay'])
+
+        if err:
             raise RuntimeError(err)
         return True
 
@@ -509,6 +532,7 @@ class DatabaseHandler(object):
         self.options.update({
             'connect_timeout': connect_timeout,
             'isolation_level': None,
+            'foreign_keys_constraints': True,
         })
 
     def session_factory(self):
