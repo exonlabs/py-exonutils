@@ -86,6 +86,10 @@ class BaseModel(object):
             return '%s ASC' % cols[0]
         return None
 
+    @classmethod
+    def _guid(cls):
+        return uuid.uuid5(uuid.uuid1(), uuid.uuid4().hex).hex
+
     def modify(self, dbs, data, commit=True):
         if 'guid' in data.keys():
             del(data['guid'])
@@ -150,7 +154,7 @@ class BaseModel(object):
 
     @classmethod
     def create(cls, dbs, data, commit=True):
-        data['guid'] = uuid.uuid5(uuid.uuid1(), uuid.uuid4().hex).hex
+        data['guid'] = cls._guid()
         data = cls._bind_params(data)
         dbs.query(cls).insert(data)
         if commit:

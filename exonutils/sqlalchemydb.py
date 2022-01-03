@@ -36,6 +36,10 @@ class BaseModel(object):
             return (cols[0].asc(),)
         return None
 
+    @classmethod
+    def _guid(cls):
+        return uuid.uuid5(uuid.uuid1(), uuid.uuid4().hex).hex
+
     def modify(self, dbs, data, commit=True):
         if 'guid' in data.keys():
             del(data['guid'])
@@ -95,7 +99,7 @@ class BaseModel(object):
         if 'guid' in data.keys():
             del(data['guid'])
         obj = cls()
-        obj.guid = uuid.uuid5(uuid.uuid1(), uuid.uuid4().hex).hex
+        obj.guid = cls._guid()
         for attr, value in data.items():
             setattr(obj, attr, value)
         dbs.add(obj)
