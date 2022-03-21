@@ -13,8 +13,6 @@ from datetime import datetime, date, time
 
 __all__ = []
 
-_logger = logging.getLogger('sqlitedb')
-
 register_adapter = sqlite3.register_adapter
 register_converter = sqlite3.register_converter
 
@@ -369,19 +367,26 @@ class _Query(object):
 
 class _Session(object):
 
-    def __init__(self, options, debug=0):
+    def __init__(self, options, logger=None, debug=0):
         self.debug = debug
         self.options = options
         self.connection = None
         self.cursor = None
+
+        self.logger = logger if logger else logging.getLogger('sqlitedb')
+        if self.debug >= 5:
+            self.logger.setLevel(logging.DEBUG)
+        elif self.debug >= 4:
+            self.logger.setLevel(logging.INFO)
+        else:
+            self.logger.setLevel(logging.ERROR)
 
         self.pragma_foreign_keys = \
             self.options.get('foreign_keys_constraints', True)
 
     def connect(self):
         if self.debug >= 4:
-            global _logger
-            _logger.debug(
+            self.logger.debug(
                 "(%s) open connection" % self.options['database'])
         self.connection = sqlite3.connect(
             self.options['database'],
@@ -395,8 +400,7 @@ class _Session(object):
     def close(self):
         if self.connection:
             if self.debug >= 4:
-                global _logger
-                _logger.debug(
+                self.logger.debug(
                     "(%s) close connection" % self.options['database'])
             self.connection.close()
         self.connection = None
@@ -413,12 +417,11 @@ class _Session(object):
         return _Query(self, model)
 
     def _sql_log(self, sql, params=None):
-        global _logger
         # clean extra newlines with spaces
         sql = re.sub('\n\\s+', '\n', sql).strip()
-        _logger.info("SQL:\n---\n%s\n---" % sql)
+        self.logger.info("SQL:\n---\n%s\n---" % sql)
         if params:
-            _logger.info("PARAMS: %s" % params)
+            self.logger.info("PARAMS: %s" % params)
 
     def execute(self, sql, params=None):
         self.init_cursor()
@@ -493,8 +496,7 @@ class _Session(object):
 
     def commit(self):
         if self.debug >= 4:
-            global _logger
-            _logger.debug("(%s) commit" % self.options['database'])
+            self.logger.debug("(%s) commit" % self.options['database'])
         if self.connection:
             self.connection.commit()
             return True
@@ -502,8 +504,7 @@ class _Session(object):
 
     def rollback(self):
         if self.debug >= 4:
-            global _logger
-            _logger.debug("(%s) rollback" % self.options['database'])
+            self.logger.debug("(%s) rollback" % self.options['database'])
         if self.connection:
             self.connection.rollback()
             return True
@@ -524,8 +525,10 @@ class SessionHandler(object):
 
 class DatabaseHandler(object):
 
-    def __init__(self, database, debug=0, retry=10, retry_delay=0.3):
+    def __init__(self, database, logger=None, debug=0,
+                 retry=10, retry_delay=0.3):
         self.debug = debug
+        self.logger = logger
         self.options = {
             'database': database,
             'retry': retry,
@@ -540,21 +543,11 @@ class DatabaseHandler(object):
         })
 
     def session_factory(self):
-        return _Session(self.options, debug=self.debug)
+        return _Session(
+            self.options, logger=self.logger, debug=self.debug)
 
     def session_handler(self):
         return SessionHandler(self.session_factory())
-
-
-# adjust logging for sqlite
-def init_logging(debug=0):
-    global _logger
-    if debug >= 5:
-        _logger.setLevel(logging.DEBUG)
-    elif debug >= 4:
-        _logger.setLevel(logging.INFO)
-    else:
-        _logger.setLevel(logging.ERROR)
 
 
 # create database tables and initial data

@@ -93,8 +93,6 @@ if __name__ == '__main__':
             help='set debug modes')
         args = pr.parse_args()
 
-        db.init_logging(debug=args.debug)
-
         cfg = dbutils.interactive_config('sqlite', defaults={
             'database': '/tmp/test.db',
         })
