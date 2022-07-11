@@ -11,7 +11,8 @@ clean-dist:
 	@rm -rf dist/
 
 clean-dev: clean
-	@rm -rf *.egg-info/ *.dist-info/
+	@find . -type d -name '*.egg-info' -exec rm -rf {} +
+	@find . -type d -name '*.dist-info' -exec rm -rf {} +
 
 clean-all: clean-dev clean-dist
 
@@ -19,7 +20,7 @@ setup-dev: clean-dev
 	@bash scripts/setup_dev.sh
 
 build: clean
-	@bash scripts/build.sh $(version)
+	@bash scripts/build.sh
 
 release: clean
 	@bash scripts/release.sh
