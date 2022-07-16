@@ -2,9 +2,9 @@
 import sys
 import logging
 from argparse import ArgumentParser
-from traceback import format_exc
 
-from exonutils.webapp import BaseWebSrv, BaseWebView
+from exonutils.webapp.server import SimpleWebServer
+from exonutils.webapp.view import BaseWebView
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
@@ -16,9 +16,6 @@ logging.addLevelName(logging.CRITICAL, "FATAL")
 class IndexView(BaseWebView):
     routes = [('/', 'index')]
 
-    def initialize(self):
-        self.log.info("initializing")
-
     def get(self, **kwargs):
         self.log.debug(self.__class__.__name__)
         return self.__class__.__name__
@@ -26,9 +23,6 @@ class IndexView(BaseWebView):
 
 class HomeView(BaseWebView):
     routes = [('/home', 'home')]
-
-    def initialize(self):
-        self.log.info("initializing")
 
     def get(self, **kwargs):
         self.log.debug(self.__class__.__name__)
@@ -39,15 +33,14 @@ class ExitView(BaseWebView):
     routes = [('/exit', 'exit')]
 
     def get(self, **kwargs):
-        self.websrv.stop()
+        self.parent.stop()
         return ''
 
 
-if __name__ == '__main__':
+def main():
     logger = logging.getLogger()
     logger.name = 'main'
 
-    # web requests logger
     reqlog = logging.getLogger('%s.requests' % logger.name)
     reqlog.handlers = [logging.StreamHandler(sys.stdout)]
 
@@ -61,18 +54,29 @@ if __name__ == '__main__':
         if args.debug > 0:
             logger.setLevel(logging.DEBUG)
 
-        cfg = {
+        options = {
             'secret_key': "0123456789ABCDEF",
             'max_content_length': 10485760,
             'templates_auto_reload': bool(args.debug >= 3),
         }
 
-        websrv = BaseWebSrv(
-            options=cfg, logger=logger, debug=args.debug)
+        websrv = SimpleWebServer(
+            options=options, logger=logger, reqlogger=reqlog)
         websrv.initialize()
-        websrv.load_views(BaseWebView.__subclasses__())
-        websrv.start('0.0.0.0', 8000)
 
-    except Exception:
-        logger.fatal(format_exc())
+        for view_cls in BaseWebView.__subclasses__():
+            websrv.add_view(view_cls())
+
+        websrv.start(
+            '0.0.0.0', 8000,
+            debug=bool(args.debug >= 1),
+            use_reloader=bool(args.debug >= 3)
+        )
+
+    except Exception as e:
+        logger.fatal(str(e), exc_info=args.debug)
         sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
