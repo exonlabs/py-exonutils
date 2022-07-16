@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-from traceback import format_exc
-
-from exonutils.console import ConsoleInput as Input
+from exonutils.utils.console import Console
 
 
 def repr(res):
@@ -9,48 +7,51 @@ def repr(res):
         return '<none>'
     return res if res else '<empty>'
 
-try:
-    res = Input.get("Enter your first name", required=True)
+
+def main():
+    ch = Console()
+
+    res = ch.get_value("Enter your first name", required=True)
     print("  * First name: %s" % repr(res))
 
-    res = Input.get("Enter your last name", default='', required=False)
+    res = ch.get_value("Enter your last name", default='', required=False)
     print("  * Last name: %s" % repr(res))
 
-    res = Input.get(
+    res = ch.get_value(
         "Enter your email", regex='^[a-zA-Z0-9_.-]+@[a-zA-Z0-9.-]+$')
     print("  * Email: %s" % repr(res))
 
-    res = Input.passwd("Enter Primary Password", required=True)
-    Input.confirm_passwd("Confirm Password", res)
+    res = ch.get_password("Enter Primary Password", required=True)
+    ch.confirm_password("Confirm Password", res)
     print("  * Primary Password: %s" % repr(res))
 
-    res = Input.passwd("Enter Secondary Password (optional)")
+    res = ch.get_password("Enter Secondary Password (optional)")
     if res:
-        Input.confirm_passwd("Confirm Secondary Password", res)
+        ch.confirm_password("Confirm Secondary Password", res)
     print("  * Secondary Password: %s" % repr(res))
 
-    res = Input.number(
+    res = ch.get_number(
         "Choose PIN number (0-9999)", required=True, vmin=0, vmax=9999)
     print("  * PIN: %s" % repr(res))
 
-    res = Input.number(
+    res = ch.get_number(
         "Choose limit (min:-10, max:10)", default=0, vmin=-10, vmax=10)
     print("  * limit: %s" % repr(res))
 
-    res = Input.decimal(
+    res = ch.get_decimal(
         "Enter grade percent", required=True, vmin=0, vmax=100)
     print("  * Grade: %s%%" % repr(res))
 
-    res = Input.select(
+    res = ch.select_value(
         "Select Color", ['red', 'blue', 'green'], default='red')
     print("  * Color: %s" % repr(res))
 
-    res = Input.yesno("Do you need updates", required=True)
+    res = ch.select_yesno("Do you need updates", required=True)
     print("  * Updates: %s" % ('Enabled' if res else "Disabled"))
 
-except ValueError as e:
-    print("Error: %s" % str(e).strip())
-except Exception:
-    print(format_exc().strip())
-except KeyboardInterrupt:
-    print("\n-- terminated --")
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (KeyboardInterrupt, SystemExit):
+        print("\n-- terminated --")

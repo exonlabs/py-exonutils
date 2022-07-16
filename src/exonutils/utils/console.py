@@ -1,8 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-    :copyright: 2021, ExonLabs. All rights reserved.
-    :license: BSD, see LICENSE for more details.
-"""
 import re
 from getpass import getpass
 try:
@@ -17,15 +13,15 @@ try:
 except ImportError:
     colorama = None
 
-__all__ = ['ConsoleInput']
+__all__ = []
 
 
-class ConsoleInput(object):
+class Console(object):
 
     prompt_caret = '>>'
 
     @classmethod
-    def _input(cls, msg, default='', hidden=False):
+    def _get_input(cls, msg, default='', hidden=False):
         if colorama:
             # print BOLD/BRIGHT text message
             prompt = "%s%s %s %s" % (
@@ -40,7 +36,7 @@ class ConsoleInput(object):
         return result if result else default
 
     @classmethod
-    def _err(cls, msg):
+    def _print_err(cls, msg):
         if colorama:
             # print RED color error message
             print("%s -- %s%s" % (
@@ -56,9 +52,8 @@ class ConsoleInput(object):
             return "invalid input format"
         return True
 
-    @classmethod
-    def get(cls, msg, default=None, required=False, trials=3, hidden=False,
-            regex=None, validator=None):
+    def get_value(self, msg, default=None, required=False, trials=3,
+                  hidden=False, regex=None, validator=None):
         str_default = '' if default is None else str(default).strip()
 
         msg = "%s:" % msg
@@ -66,43 +61,41 @@ class ConsoleInput(object):
             msg += " [%s]" % str_default
 
         if not validator:
-            validator = cls._validator
+            validator = self._validator
 
         for i in range(max(1, trials)):
-            input_str = cls._input(msg, default=str_default, hidden=hidden)
+            input_str = self._get_input(
+                msg, default=str_default, hidden=hidden)
             if input_str:
                 chk = validator(input_str, regex=regex)
                 if chk is True:
                     return input_str
-                cls._err(chk)
+                self._print_err(chk)
             elif not required:
                 return None if default is None else str_default
             else:
-                cls._err("required input, please enter value")
+                self._print_err("required input, please enter value")
 
         raise ValueError("failed to get valid input")
 
-    @classmethod
-    def passwd(cls, *args, **kwargs):
+    def get_password(self, *args, **kwargs):
         kwargs.update({'hidden': True})
-        return cls.get(*args, **kwargs)
+        return self.get_value(*args, **kwargs)
 
-    @classmethod
-    def confirm_passwd(cls, msg, value, trials=3):
+    def confirm_password(self, msg, value, trials=3):
         for i in range(max(1, trials)):
-            res = cls._input("%s:" % msg, hidden=True)
+            res = self._get_input("%s:" % msg, hidden=True)
             if res:
                 if res == str(value):
                     return True
-                cls._err("value not matching, please try again")
+                self._print_err("value not matching, please try again")
             else:
-                cls._err("empty input, please confirm value")
+                self._print_err("empty input, please confirm value")
 
         raise ValueError("failed to confirm value")
 
-    @classmethod
-    def number(cls, msg, default=None, required=False, trials=3,
-               vmin=None, vmax=None):
+    def get_number(self, msg, default=None, required=False, trials=3,
+                   vmin=None, vmax=None):
         def validator(input_str, regex=None):
             if not re.search('^[0-9-]+$', input_str):
                 return "invalid number format"
@@ -112,14 +105,13 @@ class ConsoleInput(object):
                 return "value out of range"
             return True
 
-        res = cls.get(
+        res = self.get_value(
             msg, default=default, required=required, trials=trials,
             validator=validator)
         return int(res) if res is not None else None
 
-    @classmethod
-    def decimal(cls, msg, default=None, required=False, trials=3,
-                vmin=None, vmax=None):
+    def get_decimal(self, msg, default=None, required=False, trials=3,
+                    vmin=None, vmax=None):
         def validator(input_str, regex=None):
             if not re.search('^[0-9-]+(.[0-9]+)?$', input_str):
                 return "invalid decimal format"
@@ -129,14 +121,13 @@ class ConsoleInput(object):
                 return "value out of range"
             return True
 
-        res = cls.get(
+        res = self.get_value(
             msg, default=default, required=required, trials=trials,
             validator=validator)
         return float(res) if res is not None else None
 
-    @classmethod
-    def select(cls, msg, values, default=None, required=False, trials=3,
-               case_sensitive=False):
+    def select_value(self, msg, values, default=None, required=False,
+                     trials=3, case_sensitive=False):
         if case_sensitive:
             values = [str(s) for s in values]
             if default is not None:
@@ -157,13 +148,12 @@ class ConsoleInput(object):
                 return "invalid value, please select from list"
             return True
 
-        return cls.get(
+        return self.get_value(
             msg, default=default, required=required, trials=trials,
             validator=validator)
 
-    @classmethod
-    def yesno(cls, msg, default=None, required=False, trials=3):
-        res = cls.select(
+    def select_yesno(self, msg, default=None, required=False, trials=3):
+        res = self.select_value(
             msg, ['y', 'n'], default=default, required=required,
             trials=trials, case_sensitive=False)
         return bool(res == 'y')
