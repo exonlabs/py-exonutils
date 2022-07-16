@@ -2,9 +2,8 @@
 import sys
 import logging
 from argparse import ArgumentParser
-from traceback import format_exc
 
-from exonutils.daemon import BaseDaemon
+from exonutils.process.daemon import BaseDaemon
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
@@ -16,23 +15,23 @@ logging.addLevelName(logging.CRITICAL, "FATAL")
 class SampleDaemon(BaseDaemon):
 
     def initialize(self):
-        self.log.info("Initializing")
         self.counter = 0
+        self.sleep(1)
 
     def execute(self):
         self.counter += 1
-        self.log.debug("Running: %s ..." % self.counter)
-        if self.counter >= 50:
-            self.log.info("exit process after count = %s" % self.counter)
+
+        self.log.debug("running: %s ..." % self.counter)
+        if self.counter >= 60:
+            self.log.info("exit process count = %s" % self.counter)
             self.stop()
-        self.sleep(2)
+
+        self.sleep(1)
 
     def terminate(self):
-        self.log.info("Shutting down")
-
-        self.term_event.clear()
-        self.log.info("exit after 5 counts")
-        for i in range(5):
+        exit_counts = 2
+        self.log.info("exit after %s counts" % exit_counts)
+        for i in range(exit_counts):
             self.log.info('count %s' % (i + 1))
             self.sleep(1)
 
@@ -46,12 +45,13 @@ class SampleDaemon(BaseDaemon):
 
     def handle_sigusr2(self):
         self.counter = 0
-        self.log.info("Counter reset")
+        self.log.info("counter reset")
 
 
-if __name__ == '__main__':
+def main():
     logger = logging.getLogger()
     logger.name = 'main'
+
     try:
         pr = ArgumentParser(prog=None)
         pr.add_argument(
@@ -62,9 +62,15 @@ if __name__ == '__main__':
         if args.debug > 0:
             logger.setLevel(logging.DEBUG)
 
-        p = SampleDaemon(logger=logger, debug=args.debug)
-        p.start()
+        logger.info("**** starting ****")
 
-    except Exception:
-        logger.fatal(format_exc().strip())
+        srv = SampleDaemon('SampleDaemon', logger=logger)
+        srv.start()
+
+    except Exception as e:
+        logger.fatal(str(e), exc_info=args.debug)
         sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()

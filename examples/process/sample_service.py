@@ -2,9 +2,9 @@
 import sys
 import logging
 from argparse import ArgumentParser
-from traceback import format_exc
 
-from exonutils.service import BaseService, BaseServiceTask
+from exonutils.process.service import SimpleService
+from exonutils.process.routine import BaseRoutine
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
@@ -15,11 +15,10 @@ logging.addLevelName(logging.CRITICAL, "FATAL")
 counter = 0
 
 
-class Task1(BaseServiceTask):
+class Routine1(BaseRoutine):
 
     def initialize(self):
-        self.log.info("initializing")
-        self.term_count = None
+        self.exit_count = None
 
     def execute(self):
         global counter
@@ -28,31 +27,30 @@ class Task1(BaseServiceTask):
 
         if counter == 5:
             self.log.info(
-                "suspend <%s> at count: %s" % (Task2.__name__, counter))
-            self.service.stop_task(Task2.__name__, suspend=True)
+                "suspend <%s> at count: %s" % ('rt2', counter))
+            self.parent.stop_routine('rt2', suspend=True)
         elif counter == 10:
             self.log.info(
-                "resume <%s> at count: %s" % (Task2.__name__, counter))
-            self.service.start_task(Task2.__name__)
+                "resume <%s> at count: %s" % ('rt2', counter))
+            self.parent.start_routine('rt2')
 
-        self.sleep(2)
+        self.sleep(1)
 
     def terminate(self):
         global counter
 
-        self.term_event.clear()
-        term_count = counter + 3
-        self.log.info("wait till count = %s" % term_count)
-        while counter < term_count:
+        exit_count = counter + 2
+        self.log.info("wait exit count = %s" % exit_count)
+        while counter < exit_count:
             counter += 1
             self.log.info("new count = %s" % counter)
             self.sleep(1)
 
 
-class Task2(BaseServiceTask):
+class Routine2(BaseRoutine):
 
     def initialize(self):
-        self.log.info("initializing")
+        pass
 
     def execute(self):
         global counter
@@ -60,21 +58,23 @@ class Task2(BaseServiceTask):
 
         if counter == 15:
             self.log.info("stopping myself at count = %s" % counter)
+            self.sleep(1)
             self.stop()
 
         if counter >= 20:
             self.log.info("stopping service at count = %s" % counter)
-            self.service.stop()
+            self.parent.stop()
 
-        self.sleep(1)
+        self.sleep(0.5)
 
-    # def terminate(self):
-    #     self.log.info("terminating")
+    def terminate(self):
+        pass
 
 
-if __name__ == '__main__':
+def main():
     logger = logging.getLogger()
     logger.name = 'main'
+
     try:
         pr = ArgumentParser(prog=None)
         pr.add_argument(
@@ -85,10 +85,21 @@ if __name__ == '__main__':
         if args.debug > 0:
             logger.setLevel(logging.DEBUG)
 
-        srv = BaseService(logger=logger, debug=args.debug)
-        srv.tasks = [Task1, Task2]
+        logger.info("**** starting ****")
+
+        srv = SimpleService('SampleService', logger=logger)
+        srv.monitor_interval = 1
+        srv.exit_delay = 10
+
+        srv.add_routine(Routine1(name="rt1"))
+        srv.add_routine(Routine2(name="rt2"))
+
         srv.start()
 
-    except Exception:
-        logger.fatal(format_exc().strip())
+    except Exception as e:
+        logger.fatal(str(e), exc_info=args.debug)
         sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
