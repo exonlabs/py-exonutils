@@ -7,6 +7,7 @@ __all__ = []
 class BaseQuery(object):
 
     def __init__(self, dbs, model, **kwargs):
+        self.dbh = dbs.dbh
         self.dbs = dbs
         self.model = model
 
@@ -40,7 +41,7 @@ class BaseQuery(object):
         cond = "AND " if self._filters else ""
         self._filters.append("%s%s=%s" % (
             cond, sql_identifier(column),
-            self.dbs.options['sql_placeholder']))
+            self.dbh.options['sql_placeholder']))
         self._execargs.append(value)
         return self
 
@@ -125,7 +126,7 @@ class BaseQuery(object):
         return None
 
     def get(self, guid):
-        self._filters = ["guid=%s" % self.dbs.options['sql_placeholder']]
+        self._filters = ["guid=%s" % self.dbh.options['sql_placeholder']]
         self._execargs = [guid]
         self._groupby, self._orderby, self._having = [], [], ""
         return self.one()
@@ -163,7 +164,7 @@ class BaseQuery(object):
         q += "\n(%s)" % (", ".join(columns))
         q += "\nVALUES"
         q += "\n(%s)" % (", ".join(
-            [self.dbs.options['sql_placeholder']] * len(columns)))
+            [self.dbh.options['sql_placeholder']] * len(columns)))
         q += ";"
 
         self.dbs.execute(q, params=params)
@@ -186,7 +187,7 @@ class BaseQuery(object):
                 columns.append('%s=%s' % (sql_identifier(k), v))
             else:
                 columns.append('%s=%s' % (
-                    sql_identifier(k), self.dbs.options['sql_placeholder']))
+                    sql_identifier(k), self.dbh.options['sql_placeholder']))
                 params.append(v)
 
         params.extend(self._execargs)

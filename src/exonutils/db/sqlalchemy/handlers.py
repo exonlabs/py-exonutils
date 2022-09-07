@@ -11,8 +11,7 @@ class DBHandler(object):
         self.options = copy.deepcopy(options)
         self.logger = None
 
-        self.engine = None
-
+        # database engine backend
         self.backend = self.options.get('backend')
         if self.backend == 'sqlite':
             driver = 'sqlite'
@@ -29,6 +28,15 @@ class DBHandler(object):
         else:
             raise RuntimeError("invalid backend: %s" % self.backend)
 
+        # set default options
+        if not self.options.get("connect_timeout"):
+            self.options["connect_timeout"] = 30
+        if not self.options.get("retries"):
+            self.options["retries"] = 10
+        if not self.options.get("retry_delay"):
+            self.options["retry_delay"] = 0.5
+
+        self.engine = None
         self.url = sa.engine.url.URL(
             driver,
             database=self.options.get('database'),

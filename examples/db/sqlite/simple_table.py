@@ -96,20 +96,20 @@ def main():
         # checking DB
         print("\nAll entries:")
         with dbh.session() as dbs:
-            for item in dbs.query(Foobar).orderby('col1 ASC').all():
+            for item in Foobar(dbs).orderby('col1 ASC').all():
                 pprint(item)
-            print("\nTotal Items: %s" % dbs.query(Foobar).count())
+            print("\nTotal Items: %s" % Foobar(dbs).count())
 
         # update entries
         print("\nEntries to Modify:")
         with dbh.session() as dbs:
-            qry = dbs.query(Foobar) \
+            qry = Foobar(dbs) \
                 .filter("col3>=$?", 2).orderby('col1 ASC')
 
             data = qry.columns('col1', 'col2', 'col3').all()
             for item in data:
                 pprint(item)
-                dbs.query(Foobar).filter("col1=$?", item['col1']) \
+                Foobar(dbs).filter("col1=$?", item['col1']) \
                     .update({
                         'col3': item['col3'] + 10,
                     })
@@ -121,7 +121,7 @@ def main():
         # update entries
         print("\nEntries to Delete:")
         with dbh.session() as dbs:
-            qry = dbs.query(Foobar) \
+            qry = Foobar(dbs) \
                 .filter("col3<$?", 2).orderby('col1 ASC')
             for item in qry.all():
                 pprint(item)
@@ -129,7 +129,7 @@ def main():
             print('\n -- Affected:', qry.delete())
 
             print("\n -- After Delete:")
-            for item in dbs.query(Foobar).orderby('col1 ASC').all():
+            for item in Foobar(dbs).orderby('col1 ASC').all():
                 pprint(item)
 
         print()

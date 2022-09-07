@@ -11,8 +11,11 @@ __all__ = []
 
 class Session(BaseSession):
 
-    def __init__(self, options={}):
-        super(Session, self).__init__(options=options)
+    def __init__(self, *args, **kwargs):
+        super(Session, self).__init__(*args, **kwargs)
+
+        if not self.dbh.options.get('database'):
+            raise ValueError("invalid database configuration")
 
         self._conn = None
         self._cur = None
@@ -30,35 +33,32 @@ class Session(BaseSession):
 
     def connect(self):
         if not self._conn:
-            if not self.options.get('database'):
-                raise ValueError("invalid database configuration")
-
-            if self.logger:
-                self.logger.debug(
-                    "(%s) - connect" % self.options['database'])
+            if self.dbh.logger:
+                self.dbh.logger.debug(
+                    "(%s) - connect" % self.dbh.options['database'])
 
             self._cur = None
 
             self._conn = sqlite3.connect(
-                self.options['database'],
-                timeout=self.options['connect_timeout'],
+                self.dbh.options['database'],
+                timeout=self.dbh.options['connect_timeout'],
                 detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
 
             self._conn.isolation_level = \
-                self.options.get('isolation_level', None)
+                self.dbh.options.get('isolation_level', None)
             self._conn.row_factory = lambda cur, row: {
                 col[0]: row[idx] for idx, col in enumerate(cur.description)}
 
         if not self._cur:
             self._cur = self._conn.cursor()
-            if self.options.get('foreign_keys_constraints', True):
+            if self.dbh.options.get('foreign_keys_constraints', True):
                 self._cur.execute('PRAGMA foreign_keys=ON')
 
     def close(self):
         if self._conn:
-            if self.logger:
-                self.logger.debug(
-                    "(%s) - close" % self.options['database'])
+            if self.dbh.logger:
+                self.dbh.logger.debug(
+                    "(%s) - close" % self.dbh.options['database'])
             self._conn.close()
 
         self._conn = None
@@ -67,11 +67,11 @@ class Session(BaseSession):
     def execute(self, sql, params=None):
         self.connect()
 
-        sql = sql.replace(self.options['sql_placeholder'], "?")
+        sql = sql.replace(self.dbh.options['sql_placeholder'], "?")
         self.log_sql(sql, params=params)
 
         err = ""
-        for i in range(self.options['retries']):
+        for i in range(self.dbh.options['retries']):
             try:
                 if params:
                     self._cur.execute(sql, params)
@@ -87,7 +87,7 @@ class Session(BaseSession):
             except Exception as e:
                 err = str(e)
 
-            time.sleep(self.options['retry_delay'])
+            time.sleep(self.dbh.options['retry_delay'])
 
         raise RuntimeError(err)
 
@@ -97,7 +97,7 @@ class Session(BaseSession):
         self.sql_log(sql_script)
 
         err = ""
-        for i in range(self.options['retries']):
+        for i in range(self.dbh.options['retries']):
             try:
                 self._cur.executescript(sql_script)
                 return
@@ -110,7 +110,7 @@ class Session(BaseSession):
             except Exception as e:
                 err = str(e)
 
-            time.sleep(self.options['retry_delay'])
+            time.sleep(self.dbh.options['retry_delay'])
 
         raise RuntimeError(err)
 
@@ -137,15 +137,15 @@ class Session(BaseSession):
             self.execute("BEGIN;")
 
     def commit(self):
-        if self.logger:
-            self.logger.debug(
-                "(%s) - commit" % self.options['database'])
+        if self.dbh.logger:
+            self.dbh.logger.debug(
+                "(%s) - commit" % self.dbh.options['database'])
 
         self._conn.commit()
 
     def rollback(self):
-        if self.logger:
-            self.logger.debug(
-                "(%s) - rollback" % self.options['database'])
+        if self.dbh.logger:
+            self.dbh.logger.debug(
+                "(%s) - rollback" % self.dbh.options['database'])
 
         self._conn.rollback()

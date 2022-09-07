@@ -12,9 +12,4 @@ class DBHandler(BaseDBHandler):
         super(DBHandler, self).__init__(options=options)
 
         self.backend = 'sqlite'
-
-    # get new session handler
-    def session(self):
-        sess = Session(options=self.options)
-        sess.logger = self.logger
-        return sess
+        self.session_factory = Session

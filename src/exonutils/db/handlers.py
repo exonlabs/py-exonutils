@@ -9,9 +9,11 @@ class BaseDBHandler(object):
     def __init__(self, options={}):
         self.options = copy.deepcopy(options)
         self.logger = None
+
+        # database engine backend
         self.backend = ''
 
-        # set default session params
+        # set default options
         if not self.options.get("connect_timeout"):
             self.options["connect_timeout"] = 30
         if not self.options.get("retries"):
@@ -23,9 +25,15 @@ class BaseDBHandler(object):
         if not self.options.get("sql_placeholder"):
             self.options["sql_placeholder"] = "$?"
 
+        # backend session engine
+        self.session_factory = None
+
     # get new session handler
     def session(self):
-        raise NotImplementedError()
+        if not self.session_factory:
+            raise RuntimeError("session_factory not initialized")
+
+        return self.session_factory(self)
 
     # create database tables and initialize table data
     def init_database(self, models, **kwargs):

@@ -20,12 +20,12 @@ class Query(BaseQuery):
     def create_schema(self):
         tblargs = self.model.table_args()
 
-        columns = self.model.table_columns()
-        if columns[0][0] != "guid":
-            columns.insert(0, ('guid', 'TEXT NOT NULL', 'PRIMARY'))
+        tblcolumns = self.model.table_columns()
+        if tblcolumns[0][0] != "guid":
+            tblcolumns.insert(0, ('guid', 'TEXT NOT NULL', 'PRIMARY'))
 
         expr, constraints, indexes = [], [], []
-        for c in columns:
+        for c in tblcolumns:
             expr.append('"%s" %s' % (sql_identifier(c[0]), c[1]))
 
             if 'BOOLEAN' in c[1]:

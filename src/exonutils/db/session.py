@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import copy
 import re
 import logging
 
@@ -8,9 +7,8 @@ __all__ = []
 
 class BaseSession(object):
 
-    def __init__(self, options={}):
-        self.options = copy.deepcopy(options)
-        self.logger = None
+    def __init__(self, dbh):
+        self.dbh = dbh
 
     def __enter__(self):
         return self
@@ -56,12 +54,12 @@ class BaseSession(object):
 
     # format and log sql query
     def log_sql(self, sql, params=None):
-        if self.logger and self.logger.level == logging.DEBUG:
+        if self.dbh.logger and self.dbh.logger.level == logging.DEBUG:
             # clean extra newlines with spaces
             sql = re.sub('\n\\s+', '\n', sql).strip()
             if params:
-                self.logger.debug(
+                self.dbh.logger.debug(
                     "SQL:\n---\n%s\nPARAMS: %s\n---" % (sql, params))
             else:
-                self.logger.debug(
+                self.dbh.logger.debug(
                     "SQL:\n---\n%s\n---" % (sql))

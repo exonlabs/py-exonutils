@@ -5,6 +5,10 @@ __all__ = []
 
 class BaseModel(object):
 
+    # shorthand to create query instance from model
+    def __new__(cls, dbs, **kwargs):
+        return dbs.query(cls, **kwargs)
+
     @classmethod
     def table_name(cls):
         # example:
@@ -60,7 +64,7 @@ class BaseModel(object):
 
     @classmethod
     def create_schema(cls, dbs, **kwargs):
-        dbs.query(cls, **kwargs).create_schema()
+        cls(dbs, **kwargs).create_schema()
 
     @classmethod
     def initialize_data(cls, dbs, **kwargs):
