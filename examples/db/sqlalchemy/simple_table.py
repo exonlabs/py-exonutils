@@ -4,11 +4,11 @@ import logging
 from pprint import pprint
 from argparse import ArgumentParser
 
-from exonutils.db.model import BaseModel
-from exonutils.db.handlers import DBHandler
+import sqlalchemy as sa
 
-from exonutils.db.backends.sqlite.engine import Engine
-from exonutils.db.backends.sqlite.utils import \
+from exonutils.db.sqlalchemy.handlers import DBHandler
+from exonutils.db.sqlalchemy.model import BaseModel
+from exonutils.db.sqlalchemy.utils import \
     interactive_config, interactive_setup
 
 logging.basicConfig(
@@ -17,6 +17,7 @@ logging.basicConfig(
 logging.addLevelName(logging.WARNING, "WARN")
 logging.addLevelName(logging.CRITICAL, "FATAL")
 
+DB_BACKEND = "sqlite"
 DB_OPTIONS = {
     "database": "/tmp/test.db",
 
@@ -24,40 +25,25 @@ DB_OPTIONS = {
     # "connect_timeout": 30,
     # "retries": 10,
     # "retry_delay": 0.5,
-    # "sql_placeholder": "$?",
-    # "foreign_keys_constraints": True,
-
-    # -- sqlite args --
-    # "isolation_level": None,
 }
 
 
 class Foobar(BaseModel):
+    __tablename__ = 'foobar'
 
-    @classmethod
-    def table_name(cls):
-        return 'foobar'
-
-    @classmethod
-    def table_columns(cls):
-        return [
-            ("col1", "TEXT NOT NULL", "UNIQUE INDEX"),
-            ("col2", "TEXT"),
-            ("col3", "INTEGER"),
-            ("col4", "BOOLEAN NOT NULL DEFAULT 0"),
-        ]
-
-    @classmethod
-    def default_orderby(cls):
-        return ["col1 ASC"]
+    col1 = sa.Column(
+        sa.UnicodeText, index=True, unique=True, nullable=False)
+    col2 = sa.Column(sa.UnicodeText)
+    col3 = sa.Column(sa.Integer)
+    col4 = sa.Column(sa.Boolean, nullable=False, default=False)
 
     @classmethod
     def initialize_data(cls, dbs, **kwargs):
         for i in range(5):
-            data = dbs.query(cls, **kwargs) \
-                .filter("col1=$?", 'foo_%s' % i).first()
+            data = dbs.query(cls) \
+                .filter(cls.col1 == 'foo_%s' % i).first()
             if not data:
-                dbs.query(cls, **kwargs).insert({
+                cls.create(dbs, {
                     'col1': 'foo_%s' % i,
                     'col2': 'description %s' % i,
                     'col3': i,
@@ -85,14 +71,14 @@ def main():
             db_logger.setLevel(logging.DEBUG)
 
         print("\nDB Options:")
-        cfg = interactive_config(defaults=DB_OPTIONS)
+        cfg = interactive_config(DB_BACKEND, defaults=DB_OPTIONS)
         pprint(cfg)
         print()
 
-        interactive_setup(cfg)
+        interactive_setup(DB_BACKEND, cfg)
         print("DB setup: Done")
 
-        dbh = DBHandler(Engine(), cfg)
+        dbh = DBHandler(cfg)
         dbh.logger = db_logger
 
         dbh.init_database([Foobar])
@@ -101,39 +87,40 @@ def main():
         # checking DB
         print("\nAll entries:")
         with dbh.session() as dbs:
-            for item in Foobar(dbs).all():
-                pprint(item)
-            print("\nTotal Items: %s" % Foobar(dbs).count())
+            for item in dbs.query(Foobar).order_by(Foobar.col1.asc()).all():
+                pprint(dict(item))
+            print("\nTotal Items: %s" % dbs.query(Foobar).count())
 
         # update entries
         print("\nEntries to Modify:")
         with dbh.session() as dbs:
-            qry = Foobar(dbs).filter("col3>=$?", 2)
+            qry = dbs.query(Foobar) \
+                .filter(Foobar.col3 >= 2).order_by(Foobar.col1.asc())
 
-            data = qry.columns('col1', 'col2', 'col3').all()
+            data = qry.all()
             for item in data:
-                pprint(item)
-                Foobar(dbs).filter("col1=$?", item['col1']) \
-                    .update({
-                        'col3': item['col3'] + 10,
+                pprint(dict(item))
+                Foobar.update(
+                    dbs.query(Foobar).filter(Foobar.col1 == item.col1), {
+                        'col3': item.col3 + 10,
                     })
 
             print("\n -- After Modify:")
-            for item in qry.columns().all():
-                pprint(item)
+            for item in qry.all():
+                pprint(dict(item))
 
         # update entries
         print("\nEntries to Delete:")
         with dbh.session() as dbs:
-            qry = Foobar(dbs).filter("col3<$?", 2)
-            for item in qry.all():
-                pprint(item)
+            qry = dbs.query(Foobar).filter(Foobar.col3 < 2)
+            for item in qry.order_by(Foobar.col1.asc()).all():
+                pprint(dict(item))
 
-            print('\n -- Affected:', qry.delete())
+            print('\n -- Affected:', Foobar.delete(qry))
 
             print("\n -- After Delete:")
-            for item in Foobar(dbs).all():
-                pprint(item)
+            for item in dbs.query(Foobar).order_by(Foobar.col1.asc()).all():
+                pprint(dict(item))
 
         print()
 

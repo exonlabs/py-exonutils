@@ -1,11 +1,23 @@
 # -*- coding: utf-8 -*-
+from exonutils.db.engine import BaseEngine
 from exonutils.db.common import sql_identifier
-from exonutils.db.query import BaseQuery
+
+from .session import Session
+from .adapters import register_adapters
 
 __all__ = []
 
 
-class Query(BaseQuery):
+class Engine(BaseEngine):
+
+    def __init__(self):
+        register_adapters()
+
+    def backend_name(self):
+        return "sqlite"
+
+    def session_factory(self):
+        return Session
 
     # columns:
     #   [(colname, definition [, constraint]), ...]
@@ -17,12 +29,16 @@ class Query(BaseQuery):
     #   ['CHECK (col1 IN (0, 1))',
     #    'FOREIGN KEY (tbl1_id) REFERENCES tbl1 (tbl1_id)', ...]
 
-    def create_schema(self):
-        tblargs = self.model.table_args()
+    def table_schema(self, model, **kwargs):
+        tblargs = model.table_args()
 
-        tblcolumns = self.model.table_columns()
+        tblname = sql_identifier(
+            kwargs.get("table_name") or model.table_name())
+
+        tblcolumns = model.table_columns()
         if tblcolumns[0][0] != "guid":
-            tblcolumns.insert(0, ('guid', 'TEXT NOT NULL', 'PRIMARY'))
+            tblcolumns.insert(
+                0, ("guid", "TEXT NOT NULL", "PRIMARY"))
 
         expr, constraints, indexes = [], [], []
         for c in tblcolumns:
@@ -43,25 +59,19 @@ class Query(BaseQuery):
                 u = 'UNIQUE ' if 'PRIMARY' in c[2] or 'UNIQUE' in c[2] else ''
                 indexes.append(
                     'CREATE %sINDEX IF NOT EXISTS ' % u +
-                    '"ix_%s_%s" ' % (self.table_name, c[0]) +
-                    'ON "%s" ("%s");' % (self.table_name, c[0]))
+                    '"ix_%s_%s" ' % (tblname, c[0]) +
+                    'ON "%s" ("%s");' % (tblname, c[0]))
 
         expr.extend(constraints)
-        expr.extend(self.model.table_constraints())
+        expr.extend(model.table_constraints())
 
-        self.dbs.begin()
-
-        # create table
-        sql = 'CREATE TABLE IF NOT EXISTS "%s" (\n' % self.table_name
+        sql = 'CREATE TABLE IF NOT EXISTS "%s" (\n' % tblname
         sql += ',\n'.join(expr)
-        if tblargs.get('without_rowid', True):
+        if tblargs.get('sqlite_without_rowid', True):
             sql += '\n) WITHOUT ROWID;\n'
         else:
             sql += '\n);\n'
-        self.dbs.execute(sql)
 
-        # create indexes
-        for sql in indexes:
-            self.dbs.execute(sql)
-
-        self.dbs.commit()
+        result = [sql]
+        result.extend(indexes)
+        return result

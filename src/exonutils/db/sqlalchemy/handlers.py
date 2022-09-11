@@ -102,4 +102,22 @@ class DBHandler(object):
             self._session_factory = sa.orm.scoped_session(
                 sa.orm.sessionmaker(bind=self.engine))
 
-        return self._session_factory
+        return self._session_factory()
+
+    # create database tables and initialize table data
+    def init_database(self, models, **kwargs):
+        from .model import BaseModel
+
+        # create database structure
+        if not self.engine:
+            self.init_engine(pool=None)
+        BaseModel.metadata.create_all(self.engine)
+
+        with self.session() as dbs:
+            # build database schema
+            for model in models:
+                model.upgrade_schema(dbs, **kwargs)
+
+            # initialize models data
+            for model in models:
+                model.initialize_data(dbs, **kwargs)

@@ -4,14 +4,14 @@ import copy
 __all__ = []
 
 
-class BaseDBHandler(object):
+class DBHandler(object):
 
-    def __init__(self, options={}):
+    def __init__(self, engine, options={}):
         self.options = copy.deepcopy(options)
         self.logger = None
 
-        # database engine backend
-        self.backend = ''
+        # database backend engine
+        self.engine = engine
 
         # set default options
         if not self.options.get("connect_timeout"):
@@ -25,22 +25,20 @@ class BaseDBHandler(object):
         if not self.options.get("sql_placeholder"):
             self.options["sql_placeholder"] = "$?"
 
-        # backend session engine
-        self.session_factory = None
-
     # get new session handler
     def session(self):
-        if not self.session_factory:
-            raise RuntimeError("session_factory not initialized")
-
-        return self.session_factory(self)
+        return self.engine.session_factory()(self)
 
     # create database tables and initialize table data
     def init_database(self, models, **kwargs):
         with self.session() as dbs:
             # build database schema
+            dbs.begin()
             for model in models:
-                model.create_schema(dbs, **kwargs)
+                for sql in self.engine.table_schema(model, **kwargs):
+                    dbs.execute(sql)
+                model.upgrade_schema(dbs, **kwargs)
+            dbs.commit()
 
             # initialize models data
             for model in models:

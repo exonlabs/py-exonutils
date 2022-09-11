@@ -18,12 +18,10 @@ class BaseModel(object):
     @classmethod
     def table_args(cls):
         # options:
-        # {
-        #   -- sqlite args --
-        #   -- disable sqlite internal rowid
-        #   'without_rowid': True,
-        # }
-        return {}
+        return {
+            # -- sqlite args --
+            'sqlite_without_rowid': True,
+        }
 
     @classmethod
     def table_columns(cls):
@@ -47,6 +45,10 @@ class BaseModel(object):
         return []
 
     @classmethod
+    def default_orderby(cls):
+        return []
+
+    @classmethod
     def data_adapters(cls):
         # example:
         # return {
@@ -63,8 +65,8 @@ class BaseModel(object):
         return {}
 
     @classmethod
-    def create_schema(cls, dbs, **kwargs):
-        cls(dbs, **kwargs).create_schema()
+    def upgrade_schema(cls, dbs, **kwargs):
+        pass
 
     @classmethod
     def initialize_data(cls, dbs, **kwargs):
