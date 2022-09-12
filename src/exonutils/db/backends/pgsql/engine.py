@@ -1,19 +1,20 @@
 # -*- coding: utf-8 -*-
-import os
-import sqlite3 as pysql
+try:
+    import psycopg2 as pysql
+except ImportError:
+    raise RuntimeError("[psycopg2] backend package not installed")
+
 from exonutils.db.engine import BaseEngine
 from exonutils.db.common import sql_identifier
-
-from .adapters import register_adapters
 
 __all__ = []
 
 
 class Engine(BaseEngine):
 
-    backend = "sqlite"
+    backend = "pgsql"
 
-    sql_placeholder = '?'
+    sql_placeholder = '%s'
 
     Error = pysql.Error
     InterfaceError = pysql.InterfaceError
@@ -25,34 +26,27 @@ class Engine(BaseEngine):
     ProgrammingError = pysql.ProgrammingError
     NotSupportedError = pysql.NotSupportedError
 
-    def __init__(self):
-        register_adapters()
-
     def connection(self, options):
-        for k in ['database']:
+        for k in ['database', 'host', 'port', 'username', 'password']:
             if not options.get(k):
                 raise ValueError("invalid database configuration")
 
-        if not os.path.exists(options['database']):
-            raise ValueError("database not found %s" % options['database'])
-
         conn = pysql.connect(
-            options['database'],
-            timeout=options['connect_timeout'] or 30,
-            check_same_thread=True,
-            detect_types=pysql.PARSE_DECLTYPES | pysql.PARSE_COLNAMES,
-            isolation_level=options.get('isolation_level'))
-        conn.row_factory = lambda cur, row: {
-            col[0]: row[idx] for idx, col in enumerate(cur.description)}
+            dbname=options['database'],
+            host=options['host'],
+            port=options['port'],
+            user=options['username'],
+            password=options['password'],
+            client_encoding='utf8',
+            connect_timeout=options.get('connect_timeout') or 30)
 
         return conn
 
     def post_connect(self, conn, options):
-        if options.get('foreign_keys_constraints', True):
-            conn.cursor().execute('PRAGMA foreign_keys=ON')
+        pass
 
     def table_schema(self, model, **kwargs):
-        tblargs = model.table_args()
+        # tblargs = model.table_args()
 
         tblname = sql_identifier(
             kwargs.get("table_name") or model.table_name())
@@ -89,10 +83,7 @@ class Engine(BaseEngine):
 
         stmt = 'CREATE TABLE IF NOT EXISTS %s (\n' % tblname
         stmt += ',\n'.join(expr)
-        if tblargs.get('sqlite_without_rowid', True):
-            stmt += '\n) WITHOUT ROWID;\n'
-        else:
-            stmt += '\n);\n'
+        stmt += '\n);\n'
 
         result = [stmt]
         result.extend(indexes)

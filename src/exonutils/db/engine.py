@@ -5,11 +5,25 @@ __all__ = []
 
 class BaseEngine(object):
 
-    def backend_name(self):
+    backend = ""
+
+    sql_placeholder = '?'
+
+    Error = Exception
+    InterfaceError = Exception
+    DatabaseError = Exception
+    DataError = Exception
+    OperationalError = Exception
+    IntegrityError = Exception
+    InternalError = Exception
+    ProgrammingError = Exception
+    NotSupportedError = Exception
+
+    def connection(self, options):
         raise NotImplementedError()
 
-    def session_factory(self):
-        raise NotImplementedError()
+    def post_connect(self, conn, options):
+        pass
 
     def table_schema(self, model, **kwargs):
         raise NotImplementedError()

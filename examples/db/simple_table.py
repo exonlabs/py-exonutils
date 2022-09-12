@@ -2,14 +2,11 @@
 import sys
 import logging
 from pprint import pprint
+from importlib import import_module
 from argparse import ArgumentParser
 
-import sqlalchemy as sa
-
-from exonutils.db.sqlalchemy.handlers import DBHandler
-from exonutils.db.sqlalchemy.model import BaseModel
-from exonutils.db.sqlalchemy.utils import \
-    interactive_config, interactive_setup
+from exonutils.db.model import BaseModel
+from exonutils.db.handlers import DBHandler
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
@@ -29,25 +26,40 @@ DB_OPTIONS = {
     # "connect_timeout": 30,
     # "retries": 10,
     # "retry_delay": 0.5,
+    # "sql_placeholder": "$?",
+    # "foreign_keys_constraints": True,
+
+    # -- sqlite args --
+    # "isolation_level": None,
 }
 
 
 class Foobar(BaseModel):
-    __tablename__ = 'foobar'
 
-    col1 = sa.Column(
-        sa.Unicode(128), index=True, unique=True, nullable=False)
-    col2 = sa.Column(sa.UnicodeText)
-    col3 = sa.Column(sa.Integer)
-    col4 = sa.Column(sa.Boolean, nullable=False, default=False)
+    @classmethod
+    def table_name(cls):
+        return 'foobar'
+
+    @classmethod
+    def table_columns(cls):
+        return [
+            ("col1", "VARCHAR(128) NOT NULL", "UNIQUE INDEX"),
+            ("col2", "TEXT"),
+            ("col3", "INTEGER"),
+            ("col4", "BOOLEAN NOT NULL DEFAULT 0"),
+        ]
+
+    @classmethod
+    def default_orderby(cls):
+        return ["col1 ASC"]
 
     @classmethod
     def initialize_data(cls, dbs, **kwargs):
         for i in range(5):
-            data = dbs.query(cls) \
-                .filter(cls.col1 == 'foo_%s' % i).first()
+            data = dbs.query(cls, **kwargs) \
+                .filter("col1=$?", 'foo_%s' % i).first()
             if not data:
-                cls.create(dbs, {
+                cls(dbs, **kwargs).insert({
                     'col1': 'foo_%s' % i,
                     'col2': 'description %s' % i,
                     'col3': i,
@@ -61,40 +73,39 @@ def run_operations(dbh):
     # checking DB
     print("\nAll entries:")
     with dbh.session() as dbs:
-        for item in dbs.query(Foobar).order_by(Foobar.col1.asc()).all():
-            pprint(dict(item))
-        print("\nTotal Items: %s" % dbs.query(Foobar).count())
+        for item in Foobar(dbs).all():
+            pprint(item)
+        print("\nTotal Items: %s" % Foobar(dbs).count())
 
     # update entries
     print("\nEntries to Modify:")
     with dbh.session() as dbs:
-        qry = dbs.query(Foobar) \
-            .filter(Foobar.col3 >= 2).order_by(Foobar.col1.asc())
+        qry = Foobar(dbs).filter("col3>=$?", 2)
 
-        data = qry.all()
+        data = qry.columns('col1', 'col2', 'col3').all()
         for item in data:
-            pprint(dict(item))
-            Foobar.update(
-                dbs.query(Foobar).filter(Foobar.col1 == item.col1), {
-                    'col3': item.col3 + 10,
+            pprint(item)
+            Foobar(dbs).filter("col1=$?", item['col1']) \
+                .update({
+                    'col3': item['col3'] + 10,
                 })
 
         print("\n -- After Modify:")
-        for item in qry.all():
-            pprint(dict(item))
+        for item in qry.columns().all():
+            pprint(item)
 
     # update entries
     print("\nEntries to Delete:")
     with dbh.session() as dbs:
-        qry = dbs.query(Foobar).filter(Foobar.col3 < 2)
-        for item in qry.order_by(Foobar.col1.asc()).all():
-            pprint(dict(item))
+        qry = Foobar(dbs).filter("col3<$?", 2)
+        for item in qry.all():
+            pprint(item)
 
-        print('\n -- Affected:', Foobar.delete(qry))
+        print('\n -- Affected:', qry.delete())
 
         print("\n -- After Delete:")
-        for item in dbs.query(Foobar).order_by(Foobar.col1.asc()).all():
-            pprint(dict(item))
+        for item in Foobar(dbs).all():
+            pprint(item)
 
 
 def main():
@@ -132,17 +143,24 @@ def main():
         if args.backend == 'sqlite':
             DB_OPTIONS['database'] = "/tmp/%s.db" % DB_OPTIONS['database']
 
+        mod = import_module(
+            '.%s.engine' % args.backend, package='exonutils.db.backends')
+        engine = mod.Engine()
+
+        mod = import_module(
+            '.%s.utils' % args.backend, package='exonutils.db.backends')
+
         print("\nDB Options:")
-        cfg = interactive_config(args.backend, defaults=DB_OPTIONS)
+        cfg = mod.interactive_config(defaults=DB_OPTIONS)
         pprint(cfg)
         print()
 
         if args.setup:
             print("DB setup:")
-            interactive_setup(args.backend, cfg)
+            mod.interactive_setup(cfg)
             print("Done")
 
-        dbh = DBHandler(cfg)
+        dbh = DBHandler(engine, cfg)
         dbh.logger = db_logger
 
         run_operations(dbh)

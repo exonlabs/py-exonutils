@@ -21,6 +21,8 @@ class BaseModel(object):
         return {
             # -- sqlite args --
             'sqlite_without_rowid': True,
+            # -- mysql args --
+            'mysql_engine': 'InnoDB',
         }
 
     @classmethod

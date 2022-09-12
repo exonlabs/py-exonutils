@@ -10,7 +10,9 @@ def interactive_config(defaults={}):
 
     ch = Console()
     options['database'] = ch.get_value(
-        "Enter db name", required=True)
+        "Enter db name",
+        default=defaults.get('database'),
+        required=True)
     options['host'] = ch.get_value(
         "Enter db host",
         default=defaults.get('host', 'localhost'),
@@ -27,8 +29,9 @@ def interactive_config(defaults={}):
         "Enter db password",
         default=defaults.get('password'),
         required=True)
-    ch.confirm_password(
-        "Confirm db password", options['password'])
+    if options['password'] != defaults.get('password'):
+        ch.confirm_password(
+            "Confirm db password", options['password'])
 
     return options
 
@@ -36,7 +39,7 @@ def interactive_config(defaults={}):
 # database backend setup
 def interactive_setup(options):
     try:
-        from pymssql import connect
+        import pymssql as mssql
     except ImportError:
         raise RuntimeError("[pymssql] backend package not installed")
 
@@ -54,9 +57,9 @@ def interactive_setup(options):
         raise ValueError("invalid empty database password")
 
     # create connection
-    conn = connect(
+    conn = mssql.connect(
         host=host, port=port, user=username, password=password,
-        charset='utf8', login_timeout=10)
+        charset='utf8', login_timeout=30, timeout=30)
 
     # create database
     cur = conn.cursor()

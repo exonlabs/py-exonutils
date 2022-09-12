@@ -10,7 +10,9 @@ def interactive_config(defaults={}):
 
     ch = Console()
     options['database'] = ch.get_value(
-        "Enter db name", required=True)
+        "Enter db name",
+        default=defaults.get('database'),
+        required=True)
     options['host'] = ch.get_value(
         "Enter db host",
         default=defaults.get('host', 'localhost'),
@@ -27,8 +29,9 @@ def interactive_config(defaults={}):
         "Enter db password",
         default=defaults.get('password'),
         required=True)
-    ch.confirm_password(
-        "Confirm db password", options['password'])
+    if options['password'] != defaults.get('password'):
+        ch.confirm_password(
+            "Confirm db password", options['password'])
 
     return options
 
@@ -36,7 +39,7 @@ def interactive_config(defaults={}):
 # database backend setup
 def interactive_setup(options):
     try:
-        from psycopg2 import connect
+        import psycopg2 as pgsql
     except ImportError:
         raise RuntimeError("[psycopg2] backend package not installed")
 
@@ -61,9 +64,9 @@ def interactive_setup(options):
         "Enter DB admin password", default='')
 
     # create connection
-    conn = connect(
+    conn = pgsql.connect(
         host=host, port=port, user=adm_user, password=adm_pass,
-        database='postgres', client_encoding='utf8')
+        dbname='postgres', client_encoding='utf8', connect_timeout=30)
     conn.set_session(autocommit=True)
 
     # create role

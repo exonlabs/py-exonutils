@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import re
+import time
 import logging
 
 from .query import Query
@@ -7,7 +8,7 @@ from .query import Query
 __all__ = []
 
 
-class BaseSession(object):
+class Session(object):
 
     def __init__(self, dbh):
         self.dbh = dbh
@@ -36,33 +37,55 @@ class BaseSession(object):
     def in_transaction(self):
         return bool(self._in_transaction)
 
-    def _connect(self):
-        raise NotImplementedError()
-
     def connect(self):
         if not self._conn:
             if self.dbh.logger:
                 self.dbh.logger.debug(
-                    "(%s) - connect" % self.dbh.options['database'])
+                    "(%s) - connect" % self.dbh.options.get('database'))
 
-            self._connect()
-
-    def _close(self):
-        self._conn.close()
-
-        self._conn = None
-        self._cur = None
+            self._conn = self.dbh.engine.connection(self.dbh.options)
+            self._cur = self._conn.cursor()
+            self._in_transaction = False
 
     def close(self):
         if self._conn:
             if self.dbh.logger:
                 self.dbh.logger.debug(
-                    "(%s) - close" % self.dbh.options['database'])
+                    "(%s) - close" % self.dbh.options.get('database'))
 
-            self._close()
+            self._conn.close()
+
+        self._conn = None
+        self._cur = None
+        self._in_transaction = False
 
     def execute(self, sql, params=None):
-        raise NotImplementedError()
+        self.connect()
+
+        sql = sql.replace(
+            self.dbh.options['sql_placeholder'],
+            self.dbh.engine.sql_placeholder)
+        self.log_sql(sql, params=params)
+
+        err = ""
+        for i in range(self.dbh.options['retries']):
+            try:
+                if params:
+                    self._cur.execute(sql, params)
+                else:
+                    self._cur.execute(sql)
+                return
+            except self.dbh.engine.DatabaseError as e:
+                err = str(e)
+                break
+            except (RuntimeError, ValueError):
+                raise
+            except Exception as e:
+                err = str(e)
+
+            time.sleep(self.dbh.options['retry_delay'])
+
+        raise RuntimeError(err)
 
     def fetchall(self, sql, params=None):
         self.execute(sql, params=params)
@@ -81,7 +104,7 @@ class BaseSession(object):
     def commit(self):
         if self.dbh.logger:
             self.dbh.logger.debug(
-                "(%s) - commit" % self.dbh.options['database'])
+                "(%s) - commit" % self.dbh.options.get('database'))
 
         self._conn.commit()
         self._in_transaction = False
@@ -89,7 +112,7 @@ class BaseSession(object):
     def rollback(self):
         if self.dbh.logger:
             self.dbh.logger.debug(
-                "(%s) - rollback" % self.dbh.options['database'])
+                "(%s) - rollback" % self.dbh.options.get('database'))
 
         self._conn.rollback()
         self._in_transaction = False

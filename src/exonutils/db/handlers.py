@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import copy
 
+from .session import Session
+
 __all__ = []
 
 
@@ -27,7 +29,7 @@ class DBHandler(object):
 
     # get new session handler
     def session(self):
-        return self.engine.session_factory()(self)
+        return Session(self)
 
     # create database tables and initialize table data
     def init_database(self, models, **kwargs):
