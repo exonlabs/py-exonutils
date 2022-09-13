@@ -73,7 +73,7 @@ def run_operations(dbh):
     # checking DB
     print("\nAll entries:")
     with dbh.session() as dbs:
-        for item in Foobar(dbs).all():
+        for item in Foobar(dbs).limit(100).all():
             pprint(item)
         print("\nTotal Items: %s" % Foobar(dbs).count())
 

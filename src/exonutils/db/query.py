@@ -80,7 +80,13 @@ class Query(object):
 
     # return all elements matching filter params
     def all(self):
-        q = "SELECT %s FROM %s" % (
+        limit_prefix = ""
+        if self.dbs.dbh.engine.backend == 'mssql':
+            if self._limit > 0 and not self._orderby:
+                limit_prefix = "TOP(%s) " % self._limit
+
+        q = "SELECT %s%s FROM %s" % (
+            limit_prefix,
             ", ".join(self._columns) if self._columns else "*",
             sql_identifier(self.table_name))
 
@@ -92,10 +98,17 @@ class Query(object):
             q += "\nHAVING %s" % self._having
         if self._orderby:
             q += "\nORDER BY %s" % (", ".join(self._orderby))
-        if self._limit > 0:
-            q += "\nLIMIT %s" % int(self._limit)
-        if self._offset > 0:
-            q += "\nOFFSET %s" % int(self._offset)
+        if self.dbs.dbh.engine.backend == 'mssql':
+            if self._orderby:
+                if self._offset > 0 or self._limit > 0:
+                    q += "\nOFFSET %s ROWS" % int(self._offset)
+                if self._limit > 0:
+                    q += "\nFETCH NEXT %s ROWS ONLY" % int(self._limit)
+        else:
+            if self._limit > 0:
+                q += "\nLIMIT %s" % int(self._limit)
+            if self._offset > 0:
+                q += "\nOFFSET %s" % int(self._offset)
         q += ";"
 
         result = []

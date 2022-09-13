@@ -71,7 +71,7 @@ class Session(object):
         for i in range(self.dbh.options['retries']):
             try:
                 if params:
-                    self._cur.execute(sql, params)
+                    self._cur.execute(sql, tuple(params))
                 else:
                     self._cur.execute(sql)
                 return
@@ -98,13 +98,20 @@ class Session(object):
 
     def begin(self):
         if not self._in_transaction:
-            self.execute("BEGIN;")
+            if self.dbh.engine.backend == 'mssql':
+                self.execute("BEGIN TRAN;")
+            else:
+                self.execute("BEGIN;")
             self._in_transaction = True
 
     def commit(self):
         if self.dbh.logger:
             self.dbh.logger.debug(
                 "(%s) - commit" % self.dbh.options.get('database'))
+
+        if self._in_transaction:
+            if self.dbh.engine.backend == 'mssql':
+                self.execute("COMMIT TRAN;")
 
         self._conn.commit()
         self._in_transaction = False
@@ -113,6 +120,10 @@ class Session(object):
         if self.dbh.logger:
             self.dbh.logger.debug(
                 "(%s) - rollback" % self.dbh.options.get('database'))
+
+        if self._in_transaction:
+            if self.dbh.engine.backend == 'mssql':
+                self.execute("ROLLBACK TRAN;")
 
         self._conn.rollback()
         self._in_transaction = False

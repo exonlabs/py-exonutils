@@ -60,10 +60,12 @@ class Engine(BaseEngine):
 
         expr, constraints, indexes = [], [], []
         for c in tblcolumns:
-            expr.append('%s %s' % (sql_identifier(c[0]), c[1]))
-
             if 'BOOLEAN' in c[1]:
-                constraints.append('CHECK (%s IN (0,1))' % c[0])
+                expr.append('%s %s' % (
+                    sql_identifier(c[0]), c[1].replace('BOOLEAN', 'BIT')))
+                constraints.append("CHECK (%s IN (0,1))" % c[0])
+            else:
+                expr.append('%s %s' % (sql_identifier(c[0]), c[1]))
 
             if len(c) <= 2:
                 continue
@@ -76,16 +78,19 @@ class Engine(BaseEngine):
             if 'PRIMARY' in c[2] or 'INDEX' in c[2]:
                 u = 'UNIQUE ' if 'PRIMARY' in c[2] or 'UNIQUE' in c[2] else ''
                 indexes.append(
-                    'CREATE %sINDEX IF NOT EXISTS ' % u +
-                    'ix_%s_%s ' % (tblname, c[0]) +
-                    'ON %s (%s);' % (tblname, c[0]))
+                    "IF NOT EXISTS (SELECT * FROM sys.indexes " +
+                    "WHERE name='ix_%s_%s')\n" % (tblname, c[0]) +
+                    "CREATE %sINDEX " % u +
+                    "ix_%s_%s " % (tblname, c[0]) +
+                    "ON %s (%s);" % (tblname, c[0]))
 
         expr.extend(constraints)
         expr.extend(model.table_constraints())
 
-        stmt = 'CREATE TABLE IF NOT EXISTS %s (\n' % tblname
-        stmt += ',\n'.join(expr)
-        stmt += '\n);\n'
+        stmt = "IF OBJECT_ID(N'%s', N'U') IS NULL\n" % tblname
+        stmt += "CREATE TABLE %s (\n" % tblname
+        stmt += ",\n".join(expr)
+        stmt += "\n);"
 
         result = [stmt]
         result.extend(indexes)
