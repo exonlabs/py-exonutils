@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import copy
+import logging
 import sqlalchemy as sa
 
 __all__ = []
@@ -9,7 +10,9 @@ class DBHandler(object):
 
     def __init__(self, options={}):
         self.options = copy.deepcopy(options)
-        self.logger = None
+
+        # adjust logging for sqlalchemy
+        logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
 
         # database engine backend
         self.backend = self.options.get('backend')
@@ -94,6 +97,9 @@ class DBHandler(object):
                     self.url,
                     poolclass=sa.pool.NullPool,
                     connect_args=connect_args)
+
+    def init_logging(self, level):
+        logging.getLogger('sqlalchemy').setLevel(level)
 
     def session(self):
         if not self._session_factory:

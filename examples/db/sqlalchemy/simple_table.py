@@ -102,10 +102,6 @@ def main():
     logger = logging.getLogger()
     logger.name = 'main'
 
-    db_logger = logging.getLogger('db')
-    db_logger.parent = logger
-    db_logger.setLevel(logging.WARNING)
-
     try:
         pr = ArgumentParser(prog=None)
         pr.add_argument(
@@ -121,8 +117,6 @@ def main():
 
         if args.debug > 0:
             logger.setLevel(logging.DEBUG)
-        if args.debug >= 3:
-            db_logger.setLevel(logging.DEBUG)
 
         if args.backend not in BACKENDS:
             print("\nError!! invalid DB backend\n")
@@ -144,7 +138,10 @@ def main():
             print("Done")
 
         dbh = DBHandler(cfg)
-        dbh.logger = db_logger
+        if args.debug >= 4:
+            dbh.init_logging(logging.DEBUG)
+        elif args.debug >= 3:
+            dbh.init_logging(logging.INFO)
 
         run_operations(dbh)
 
