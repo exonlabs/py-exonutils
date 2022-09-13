@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import copy
-import pickle
+import json
 import base64
 
 __all__ = []
@@ -48,12 +48,12 @@ class BaseFileConfig(object):
     # --> overide function in real applications
     def _encode(self, value):
         return self._mangle(
-            base64.b64encode(pickle.dumps(value)))
+            base64.b64encode(json.dumps(value).encode()))
 
     # low level basic value decoding
     # --> overide function in real applications
     def _decode(self, blob):
-        return pickle.loads(
+        return json.loads(
             base64.b64decode(self._demangle(blob)))
 
     # merge 2 dicts recursively

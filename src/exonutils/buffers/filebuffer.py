@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
-import pickle
+import json
 from shutil import rmtree
 from tempfile import gettempdir
 
@@ -44,8 +44,8 @@ class SimpleFileBuffer(BaseBuffer):
 
         fpath = os.path.join(self.buffer_path, key)
         if os.path.exists(fpath):
-            with open(fpath, 'rb') as fh:
-                res = pickle.load(fh)
+            with open(fpath, 'r') as fh:
+                res = json.load(fh)
             return res
 
         return default
@@ -59,8 +59,8 @@ class SimpleFileBuffer(BaseBuffer):
             os.makedirs(self.buffer_path)
 
         fpath = os.path.join(self.buffer_path, key)
-        with open(fpath, 'wb') as fh:
-            pickle.dump(value, fh)
+        with open(fpath, 'w') as fh:
+            json.dump(value, fh)
 
     # delete certain key from buffer
     def delete(self, key):
