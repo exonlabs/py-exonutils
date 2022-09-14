@@ -6,6 +6,10 @@ import signal
 import logging
 from flask import Flask
 from jinja2 import BaseLoader
+try:
+    from setproctitle import setproctitle
+except ImportError:
+    setproctitle = None
 
 from .view import BaseWebView
 
@@ -17,8 +21,12 @@ class SimpleWebServer(object):
     def __init__(self, name=None, options={}, logger=None, reqlogger=None):
         # web server name
         self.name = name if name else self.__class__.__name__
+        # process title to show in os process table
+        self.proctitle = self.name
+
         # web server config options
         self.options = copy.deepcopy(options)
+
         # web server logger
         self.log = logger
         # websrv requests logger
@@ -100,6 +108,13 @@ class SimpleWebServer(object):
 
         # process PID
         self.root_pid = os.getpid()
+
+        # set daemon process title
+        if self.proctitle:
+            if setproctitle:
+                setproctitle(str(self.proctitle).strip().lower())
+            else:
+                self.log.debug("ignoring setproctitle - not installed")
 
         self.app.run(host=host, port=port, **kwargs)
 
