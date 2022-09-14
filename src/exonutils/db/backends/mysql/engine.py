@@ -2,7 +2,7 @@
 try:
     import MySQLdb as pysql
 except ImportError:
-    raise RuntimeError("[mysqlclient] backend package not installed")
+    raise RuntimeError("backend package `mysqlclient` not installed")
 from MySQLdb.cursors import DictCursor
 
 from exonutils.db.engine import BaseEngine

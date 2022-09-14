@@ -41,7 +41,7 @@ def interactive_setup(options):
     try:
         import pymssql as mssql
     except ImportError:
-        raise RuntimeError("[pymssql] backend package not installed")
+        raise RuntimeError("backend package `pymssql` not installed")
 
     host = options.get('host') or 'localhost'
     port = int(options.get('port') or 1433)

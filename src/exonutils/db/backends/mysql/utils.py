@@ -41,7 +41,7 @@ def interactive_setup(options):
     try:
         import MySQLdb as mysql
     except ImportError:
-        raise RuntimeError("[mysqlclient] backend package not installed")
+        raise RuntimeError("backend package `mysqlclient` not installed")
 
     host = options.get('host') or 'localhost'
     port = int(options.get('port') or 3306)

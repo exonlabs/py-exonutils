@@ -41,7 +41,7 @@ def interactive_setup(options):
     try:
         import psycopg2 as pgsql
     except ImportError:
-        raise RuntimeError("[psycopg2] backend package not installed")
+        raise RuntimeError("backend package `psycopg2` not installed")
 
     host = options.get('host') or 'localhost'
     port = int(options.get('port') or 5432)

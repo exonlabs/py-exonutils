@@ -2,7 +2,7 @@
 try:
     import psycopg2 as pysql
 except ImportError:
-    raise RuntimeError("[psycopg2] backend package not installed")
+    raise RuntimeError("backend package `psycopg2` not installed")
 
 from exonutils.db.engine import BaseEngine
 from exonutils.db.common import sql_identifier
