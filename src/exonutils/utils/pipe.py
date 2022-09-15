@@ -41,13 +41,14 @@ class Pipe(object):
     # wait data from named pipe
     # return string: received data
     @classmethod
-    def recv(cls, path, size=1024, timeout=5):
+    def recv(cls, path, size=1024, timeout=5, break_event=None):
         ts = time.time() + timeout
-        while time.time() < ts:
+        while time.time() < ts and \
+                not (break_event and break_event.is_set()):
             fd = None
             try:
                 fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
-                if select((fd, ), (), (), 0.5)[0]:
+                if select((fd, ), (), (), 0.2)[0]:
                     res = os.read(fd, size)
                     if res:
                         return res

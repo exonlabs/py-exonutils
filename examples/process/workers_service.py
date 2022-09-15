@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 import sys
 import logging
+from random import randint
 from argparse import ArgumentParser
 
-from exonutils.process.daemon import BaseDaemon
+from exonutils.process.service import SimpleService
+from exonutils.process.routine import BaseRoutine
 
 logging.basicConfig(
     level=logging.INFO, stream=sys.stdout,
@@ -12,40 +14,26 @@ logging.addLevelName(logging.WARNING, "WARN")
 logging.addLevelName(logging.CRITICAL, "FATAL")
 
 
-class SampleDaemon(BaseDaemon):
+class Worker(BaseRoutine):
 
     def initialize(self):
-        self.counter = 0
-        self.sleep(1)
+        self.close_myself = False
 
     def execute(self):
-        self.counter += 1
-
-        self.log.debug("running: %s ..." % self.counter)
-        if self.counter >= 60:
-            self.log.info("exit process count = %s" % self.counter)
+        if randint(0, 10) >= 8:
+            self.log.info("closing myself")
+            self.close_myself = True
             self.stop()
+            return
 
-        self.sleep(1)
+        self.log.info("running %s" % self.name)
+        self.sleep(2)
 
     def terminate(self):
-        exit_counts = 2
-        self.log.info("exit after %s counts" % exit_counts)
-        for i in range(exit_counts):
-            self.log.info('count %s' % (i + 1))
-            self.sleep(1)
-
-    def handle_sigusr1(self):
-        if self.log.level != logging.DEBUG:
-            self.log.setLevel(logging.DEBUG)
-            self.log.info("debugging ON")
-        else:
-            self.log.setLevel(logging.INFO)
-            self.log.info("debugging OFF")
-
-    def handle_sigusr2(self):
-        self.counter = 0
-        self.log.info("counter reset")
+        if not self.close_myself and randint(0, 10) >= 5:
+            self.log.info("i will not exit")
+            while True:
+                self.sleep(10)
 
 
 def main():
@@ -64,7 +52,12 @@ def main():
 
         logger.info("**** starting ****")
 
-        srv = SampleDaemon('SampleDaemon', logger=logger)
+        srv = SimpleService('WorkersService', logger=logger)
+        srv.monitor_interval = 1
+
+        for i in range(3):
+            srv.add_routine(Worker("worker_%s" % (i + 1)))
+
         srv.start()
 
     except Exception as e:

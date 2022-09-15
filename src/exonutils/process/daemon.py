@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import copy
 import signal
 import threading
 import logging
@@ -10,27 +9,30 @@ except ImportError:
 
 __all__ = []
 
-# signals handled by daemon process
-DAEMON_SIGNALS = [
-    'SIGINT', 'SIGTERM', 'SIGQUIT',
-    'SIGHUP', 'SIGUSR1', 'SIGUSR2',
-]
-
 
 class BaseDaemon(object):
 
     def __init__(self, name, logger=None):
         # daemon name
         self.name = name
-        # daemon process title to show in os process table
+        # daemon process title to show in OS process table
         self.proctitle = self.name
         # daemon logger
         self.log = logger
+        # debug mode
+        self.debug = False
 
-        self.signals = copy.deepcopy(DAEMON_SIGNALS)
+        # default signals handled by daemon process
+        self.signals = [
+            'SIGINT', 'SIGTERM', 'SIGQUIT',
+            'SIGHUP', 'SIGUSR1', 'SIGUSR2',
+        ]
 
-        # terminate event
+        # daemon terminate event
         self.term_event = threading.Event()
+
+    def __repr__(self):
+        return "<%s: %s>" % (self.__class__.__name__, self.name)
 
     def initialize(self):
         pass
@@ -44,19 +46,37 @@ class BaseDaemon(object):
 
     def run(self):
         try:
+            self.term_event.clear()
+
+            self.log.info("initializing")
+            self.initialize()
+
+            # run forever till term event
             while not self.term_event.is_set():
                 try:
                     self.execute()
                 except Exception as e:
-                    exc = bool(self.log.level == logging.DEBUG)
-                    self.log.error(str(e), exc_info=exc)
+                    self.log.error(str(e), exc_info=self.debug)
                     self.sleep(1)
+                except (KeyboardInterrupt, SystemExit):
+                    self.log.debug("terminate event")
+
+            self.term_event.clear()
+
+            # graceful terminate
+            self.terminate()
+
+        except Exception as e:
+            self.log.error(str(e), exc_info=self.debug)
         except (KeyboardInterrupt, SystemExit):
-            self.log.debug("daemon exit event")
+            pass
+
+        self.log.info("exit")
 
     def start(self):
         if not self.log:
             self.log = logging.getLogger(self.name)
+        self.debug = bool(self.log.level == logging.DEBUG)
 
         # set signal handlers
         for s in self.signals:
@@ -70,31 +90,8 @@ class BaseDaemon(object):
             else:
                 self.log.debug("ignoring setproctitle - not installed")
 
-        try:
-            self.term_event.clear()
-
-            self.log.info("initializing")
-            self.initialize()
-
-            # check termination event
-            if self.term_event.is_set():
-                raise SystemExit()
-
-            # run forever till term event
-            self.run()
-
-            self.term_event.clear()
-
-            # graceful terminate
-            self.terminate()
-
-        except Exception as e:
-            exc = bool(self.log.level == logging.DEBUG)
-            self.log.error(str(e), exc_info=exc)
-        except (KeyboardInterrupt, SystemExit):
-            pass
-
-        self.log.info("exit")
+        # run daemon
+        self.run()
 
     def stop(self):
         self.term_event.set()

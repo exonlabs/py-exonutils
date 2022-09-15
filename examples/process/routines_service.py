@@ -91,8 +91,8 @@ def main():
         srv.monitor_interval = 1
         srv.exit_delay = 10
 
-        srv.add_routine(Routine1(name="rt1"))
-        srv.add_routine(Routine2(name="rt2"))
+        srv.add_routine(Routine1("rt1"))
+        srv.add_routine(Routine2("rt2"))
 
         srv.start()
 
