@@ -161,7 +161,7 @@ class SimpleService(BaseDaemon):
                         rthnd.start()
 
                 except Exception as e:
-                    self.log.error(str(e), exc_info=self.debug)
+                    self.log.error(str(e), exc_info=bool(self.debug))
 
 
 # service with command management pipe
@@ -230,7 +230,7 @@ class ManagedService(SimpleService):
                 reply = 'DONE'
         except Exception as e:
             reply = 'INTERNAL_ERROR'
-            self.log.error(e, exc_info=self.debug)
+            self.log.error(e, exc_info=bool(self.debug))
 
         self.sleep(0.1)
         Pipe.send(self.manage_pipe, reply.encode(), wait_peer=False)

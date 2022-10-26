@@ -20,7 +20,7 @@ class BaseDaemon(object):
         # daemon logger
         self.log = logger
         # debug mode
-        self.debug = False
+        self.debug = 0
 
         # default signals handled by daemon process
         self.signals = [
@@ -56,7 +56,7 @@ class BaseDaemon(object):
                 try:
                     self.execute()
                 except Exception as e:
-                    self.log.error(str(e), exc_info=self.debug)
+                    self.log.error(str(e), exc_info=bool(self.debug))
                     self.sleep(1)
                 except (KeyboardInterrupt, SystemExit):
                     self.log.debug("terminate event")
@@ -67,7 +67,7 @@ class BaseDaemon(object):
             self.terminate()
 
         except Exception as e:
-            self.log.error(str(e), exc_info=self.debug)
+            self.log.error(str(e), exc_info=bool(self.debug))
         except (KeyboardInterrupt, SystemExit):
             pass
 
@@ -76,7 +76,8 @@ class BaseDaemon(object):
     def start(self):
         if not self.log:
             self.log = logging.getLogger(self.name)
-        self.debug = bool(self.log.level == logging.DEBUG)
+        if not self.debug and self.log.level == logging.DEBUG:
+            self.debug = 1
 
         # set signal handlers
         for s in self.signals:

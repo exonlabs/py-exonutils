@@ -15,7 +15,7 @@ class BaseRoutine(object):
         # routine logger
         self.log = logger
         # debug mode
-        self.debug = False
+        self.debug = 0
 
         # initial routine status
         self.is_initialized = False
@@ -58,7 +58,7 @@ class BaseRoutine(object):
                 try:
                     self.execute()
                 except Exception as e:
-                    self.log.error(str(e), exc_info=self.debug)
+                    self.log.error(str(e), exc_info=bool(self.debug))
                     self.sleep(1)
                 except (KeyboardInterrupt, SystemExit):
                     self.log.debug("terminate event")
@@ -69,7 +69,7 @@ class BaseRoutine(object):
             self.terminate()
 
         except Exception as e:
-            self.log.error(str(e), exc_info=self.debug)
+            self.log.error(str(e), exc_info=bool(self.debug))
         except (KeyboardInterrupt, SystemExit):
             pass
 
@@ -84,7 +84,8 @@ class BaseRoutine(object):
             self.log = logging.getLogger(self.name)
             self.log.parent = self.parent.log
             self.log.level = self.parent.log.level
-        self.debug = bool(self.log.level == logging.DEBUG)
+        if not self.debug and self.log.level == logging.DEBUG:
+            self.debug = 1
 
         # clear status
         self.is_suspended = False
