@@ -65,7 +65,7 @@ class SimpleWebServer(object):
         for url, endpoint in view_hnd.routes:
             self.app.add_url_rule(
                 url, endpoint=endpoint,
-                view_func=view_hnd.handle_request,
+                view_func=view_hnd.dispatch_request,
                 methods=view_hnd.methods)
 
     def create_app(self):

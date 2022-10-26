@@ -35,34 +35,44 @@ class BaseWebView(object):
 
         self.log.debug("initializing")
 
-    def before_request(self, *args, **kwargs):
-        return None
-
-    def after_request(self, response, *args, **kwargs):
-        return response
-
-    def handle_request(self, *args, **kwargs):
+    def dispatch_request(self, *args, **kwargs):
         # exec before request handlers
-        response = self.before_request(*args, **kwargs)
-        if response is not None:
-            return response
+        if hasattr(self, 'before_request'):
+            response = self.before_request(*args, **kwargs)
+            if response is not None:
+                return response
 
-        # handle request method
-        try:
-            method = request.method.lower()
-            response = getattr(self, method)(*args, **kwargs)
-        except (AttributeError, NotImplementedError):
-            return "Method Not Allowed", 405
+        # dispatch request
+        response = self.handle_request(
+            request.method.lower(), *args, **kwargs)
 
         # exec after request handlers
-        return self.after_request(response, *args, **kwargs)
+        if hasattr(self, 'after_request'):
+            return self.after_request(response, *args, **kwargs)
 
-    # default redirect for GET method if not implemented
-    def head(self, *args, **kwargs):
-        return self.get(*args, **kwargs)
+        return response
 
-    def get(self, *args, **kwargs):
-        raise NotImplementedError()
+    def handle_request(self, method, *args, **kwargs):
+        if not hasattr(self, method):
+            # use GET method instead of HEAD if not implemented
+            if method == 'head' and hasattr(self, 'get'):
+                method = 'get'
+            else:
+                return "Method Not Allowed", 405
 
-    def post(self, *args, **kwargs):
-        raise NotImplementedError()
+        return getattr(self, method)(*args, **kwargs)
+
+    # def before_request(self, *args, **kwargs):
+    #     return None
+
+    # def after_request(self, response, *args, **kwargs):
+    #     return response
+
+    # def head(self, *args, **kwargs):
+    #     raise NotImplementedError()
+
+    # def get(self, *args, **kwargs):
+    #     raise NotImplementedError()
+
+    # def post(self, *args, **kwargs):
+    #     raise NotImplementedError()
