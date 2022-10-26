@@ -18,6 +18,8 @@ class BaseWebView(object):
         self.parent = None
         # view logger
         self.log = logger
+        # debug mode
+        self.debug = 0
 
     def initialize(self):
         if not self.parent:
@@ -28,6 +30,8 @@ class BaseWebView(object):
             self.log = logging.getLogger(self.name)
             self.log.parent = self.parent.log
             self.log.level = self.parent.log.level
+        if not self.debug and self.log.level == logging.DEBUG:
+            self.debug = 1
 
         self.log.debug("initializing")
 

@@ -79,7 +79,7 @@ def main():
             APP_OPTIONS['templates_auto_reload'] = True
 
         websrv = SimpleWebServer(
-            name='WebPortal', options=APP_OPTIONS,
+            'WebPortal', options=APP_OPTIONS,
             logger=logger, reqlogger=reqlog)
         websrv.initialize()
 

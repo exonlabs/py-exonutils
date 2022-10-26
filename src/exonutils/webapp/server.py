@@ -18,11 +18,13 @@ __all__ = []
 
 class SimpleWebServer(object):
 
-    def __init__(self, name=None, options={}, logger=None, reqlogger=None):
+    def __init__(self, name, options={}, logger=None, reqlogger=None):
         # web server name
-        self.name = name if name else self.__class__.__name__
+        self.name = name
         # process title to show in os process table
         self.proctitle = self.name
+        # debug mode
+        self.debug = 0
 
         # web server config options
         self.options = copy.deepcopy(options)
@@ -39,6 +41,8 @@ class SimpleWebServer(object):
     def initialize(self):
         if not self.log:
             self.log = logging.getLogger(self.name)
+        if not self.debug and self.log.level == logging.DEBUG:
+            self.debug = 1
 
         self.log.info("initializing")
 
@@ -96,15 +100,15 @@ class SimpleWebServer(object):
             if hasattr(e, 'name') and hasattr(e, 'code'):
                 return e.name, e.code
             else:
-                exc = bool(self.log.level == logging.DEBUG)
-                self.log.error(str(e), exc_info=exc)
+                self.log.error(str(e), exc_info=bool(self.bebug))
                 return "Internal Server Error", 500
 
         return app
 
     def start(self, host, port, **kwargs):
         # adjust request logs
-        logging.getLogger('werkzeug').parent = self.reqlog
+        if self.reqlog:
+            logging.getLogger('werkzeug').parent = self.reqlog
 
         # process PID
         self.root_pid = os.getpid()
