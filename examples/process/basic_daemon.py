@@ -15,6 +15,8 @@ logging.addLevelName(logging.CRITICAL, "FATAL")
 class Daemon(BaseDaemon):
 
     def initialize(self):
+        self.log.info("initializing")
+
         self.counter = 0
         self.sleep(1)
 
@@ -66,7 +68,7 @@ def main():
 
         logger.info("**** starting ****")
 
-        srv = Daemon('SampleDaemon', logger=logger)
+        srv = Daemon('SampleDaemon', logger=logger, debug=args.debug)
         logger.info("Created service: %s" % srv)
 
         srv.start()
@@ -74,6 +76,8 @@ def main():
     except Exception as e:
         logger.fatal(str(e), exc_info=args.debug)
         sys.exit(1)
+    finally:
+        logger.info("exit")
 
 
 if __name__ == '__main__':

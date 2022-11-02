@@ -7,7 +7,7 @@ __all__ = []
 
 class BaseRoutine(object):
 
-    def __init__(self, name, logger=None):
+    def __init__(self, name, logger=None, debug=0, auto_start=True):
         # routine name
         self.name = name
         # routine parent handler
@@ -15,12 +15,12 @@ class BaseRoutine(object):
         # routine logger
         self.log = logger
         # debug mode
-        self.debug = 0
+        self.debug = debug
 
         # initial routine status
-        self.is_initialized = False
+        self.initial_run = False
         # routine suspend status, will not auto-start by parent
-        self.is_suspended = False
+        self.is_suspended = not auto_start
         # routine is cancelled and will be deleted by parent
         self.is_cancelled = False
 
@@ -44,32 +44,39 @@ class BaseRoutine(object):
         pass
 
     def run(self):
+        self.initial_run = True
+        self.term_event.clear()
+
+        # initializing
         try:
-            self.term_event.clear()
-
-            self.log.info("initializing")
             self.initialize()
-
-            self.is_initialized = True
-
-            # run forever till term event
-            while not (self.term_event.is_set() or
-                       self.is_suspended or self.is_cancelled):
-                try:
-                    self.execute()
-                except Exception as e:
-                    self.log.error(str(e), exc_info=bool(self.debug))
-                    self.sleep(1)
-                except (KeyboardInterrupt, SystemExit):
-                    self.log.debug("terminate event")
-
-            self.term_event.clear()
-
-            # graceful terminate
-            self.terminate()
-
         except Exception as e:
-            self.log.error(str(e), exc_info=bool(self.debug))
+            self.log.error(str(e), exc_info=bool(self.debug >= 2))
+            self.log.info("terminated")
+            return
+        except (KeyboardInterrupt, SystemExit):
+            self.log.info("terminated")
+            return
+
+        # run forever till term event
+        while not (self.term_event.is_set() or
+                   self.is_suspended or self.is_cancelled):
+            try:
+                self.execute()
+            except Exception as e:
+                self.log.error(str(e), exc_info=bool(self.debug >= 2))
+                self.sleep(1)
+            except (KeyboardInterrupt, SystemExit):
+                break
+
+        self.log.info("-- terminate event --")
+        self.term_event.clear()
+
+        # graceful terminate
+        try:
+            self.terminate()
+        except Exception as e:
+            self.log.error(str(e), exc_info=bool(self.debug >= 2))
         except (KeyboardInterrupt, SystemExit):
             pass
 
@@ -84,6 +91,8 @@ class BaseRoutine(object):
             self.log = logging.getLogger(self.name)
             self.log.parent = self.parent.log
             self.log.level = self.parent.log.level
+
+        self.debug = self.parent.debug
         if not self.debug and self.log.level == logging.DEBUG:
             self.debug = 1
 

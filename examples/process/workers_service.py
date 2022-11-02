@@ -17,6 +17,7 @@ logging.addLevelName(logging.CRITICAL, "FATAL")
 class Worker(BaseRoutine):
 
     def initialize(self):
+        self.log.info("initializing")
         self.close_myself = False
 
     def execute(self):
@@ -52,7 +53,8 @@ def main():
 
         logger.info("**** starting ****")
 
-        srv = SimpleService('WorkersService', logger=logger)
+        srv = SimpleService(
+            'WorkersService', logger=logger, debug=args.debug)
         srv.monitor_interval = 1
 
         for i in range(3):
@@ -63,6 +65,8 @@ def main():
     except Exception as e:
         logger.fatal(str(e), exc_info=args.debug)
         sys.exit(1)
+    finally:
+        logger.info("exit")
 
 
 if __name__ == '__main__':

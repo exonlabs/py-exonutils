@@ -12,15 +12,15 @@ __all__ = []
 
 class BaseDaemon(object):
 
-    def __init__(self, name, logger=None):
+    def __init__(self, name, proctitle='', logger=None, debug=0):
         # daemon name
         self.name = name
         # daemon process title to show in OS process table
-        self.proctitle = self.name
+        self.proctitle = proctitle or name
         # daemon logger
         self.log = logger
         # debug mode
-        self.debug = 0
+        self.debug = debug
 
         # default signals handled by daemon process
         self.signals = [
@@ -45,33 +45,37 @@ class BaseDaemon(object):
         pass
 
     def run(self):
+        self.term_event.clear()
+
+        # initializing
         try:
-            self.term_event.clear()
-
-            self.log.info("initializing")
             self.initialize()
-
-            # run forever till term event
-            while not self.term_event.is_set():
-                try:
-                    self.execute()
-                except Exception as e:
-                    self.log.error(str(e), exc_info=bool(self.debug))
-                    self.sleep(1)
-                except (KeyboardInterrupt, SystemExit):
-                    self.log.debug("terminate event")
-
-            self.term_event.clear()
-
-            # graceful terminate
-            self.terminate()
-
         except Exception as e:
-            self.log.error(str(e), exc_info=bool(self.debug))
+            self.log.error(str(e), exc_info=bool(self.debug >= 2))
+            return
+        except (KeyboardInterrupt, SystemExit):
+            return
+
+        # run forever till term event
+        while not self.term_event.is_set():
+            try:
+                self.execute()
+            except Exception as e:
+                self.log.error(str(e), exc_info=bool(self.debug >= 2))
+                self.sleep(1)
+            except (KeyboardInterrupt, SystemExit):
+                break
+
+        self.log.info("-- terminate event --")
+        self.term_event.clear()
+
+        # graceful terminate
+        try:
+            self.terminate()
+        except Exception as e:
+            self.log.error(str(e), exc_info=bool(self.debug >= 2))
         except (KeyboardInterrupt, SystemExit):
             pass
-
-        self.log.info("exit")
 
     def start(self):
         if not self.log:
@@ -110,10 +114,10 @@ class BaseDaemon(object):
             signame = '' if not res else res[0]
 
         if hasattr(self, "handle_%s" % signame.lower()):
-            self.log.info("received %s" % signame)
+            self.log.info("<received: %s>" % signame)
             getattr(self, "handle_%s" % signame.lower())()
         else:
-            self.log.debug("received %s - (ignoring)" % signame)
+            self.log.debug("<received: %s> - ignoring" % signame)
 
     def handle_sigint(self):
         self.stop()

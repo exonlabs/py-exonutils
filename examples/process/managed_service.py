@@ -21,7 +21,7 @@ WORKERS_INDEX = 1
 class Worker(BaseRoutine):
 
     def initialize(self):
-        pass
+        self.log.info("initializing")
 
     def execute(self):
         self.log.info("running %s" % self.name)
@@ -96,7 +96,8 @@ def main():
 
         logger.info("**** starting ****")
 
-        srv = ManagedService('ManagedService', logger=logger)
+        srv = ManagedService(
+            'ManagedService', logger=logger, debug=args.debug)
         srv.monitor_interval = 3
         srv.manage_pipe = os.path.join(
             gettempdir(), '%s.pipe' % srv.name.lower())
@@ -111,6 +112,8 @@ def main():
     except Exception as e:
         logger.fatal(str(e), exc_info=args.debug)
         sys.exit(1)
+    finally:
+        logger.info("exit")
 
 
 if __name__ == '__main__':

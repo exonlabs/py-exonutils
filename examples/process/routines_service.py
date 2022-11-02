@@ -87,7 +87,8 @@ def main():
 
         logger.info("**** starting ****")
 
-        srv = SimpleService('SampleService', logger=logger)
+        srv = SimpleService(
+            'SampleService', logger=logger, debug=args.debug)
         srv.monitor_interval = 1
         srv.exit_delay = 10
 
@@ -99,6 +100,8 @@ def main():
     except Exception as e:
         logger.fatal(str(e), exc_info=args.debug)
         sys.exit(1)
+    finally:
+        logger.info("exit")
 
 
 if __name__ == '__main__':

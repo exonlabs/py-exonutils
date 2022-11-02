@@ -12,22 +12,23 @@ __all__ = []
 
 class SimpleService(BaseDaemon):
 
-    def __init__(self, name, logger=None):
-        super(SimpleService, self).__init__(name, logger=logger)
+    def __init__(self, *args, **kwargs):
+        super(SimpleService, self).__init__(*args, **kwargs)
+
+        # buffers holding routines handlers
+        self.routines = dict()
 
         # interval in sec to check for routines
         self.monitor_interval = 5
         # delay in sec to wait for routines exit
         self.exit_delay = 3
 
-        # buffers holding routines handlers and info
-        self._routines = dict()
-        self._rt_lock = threading.Lock()
+        self._rtlock = threading.Lock()
 
     def initialize(self):
-        if self._routines:
+        if self.routines:
             self.log.debug("loaded routines: %s"
-                           % ', '.join(self._routines.keys()))
+                           % ', '.join(self.routines.keys()))
         else:
             self.log.warning("no routines loaded")
 
@@ -39,64 +40,62 @@ class SimpleService(BaseDaemon):
 
     def terminate(self):
         self.log.info("stopping all routines")
-        with self._rt_lock:
-            for rthnd in self._routines.values():
+        with self._rtlock:
+            for rthnd in self.routines.values():
                 rthnd.stop(suspend=True)
 
         self.sleep(0.05)
 
         def get_alive():
             return [
-                rthnd.name for rthnd in self._routines.values()
+                rthnd.name for rthnd in self.routines.values()
                 if rthnd.is_alive()]
 
         # check running status and wait termination
         ts = time.time() + self.exit_delay
         while time.time() < ts:
-            with self._rt_lock:
+            with self._rtlock:
                 if not get_alive():
                     return
             self.sleep(0.1)
 
-        with self._rt_lock:
+        with self._rtlock:
             rt_alive = get_alive()
         if rt_alive:
             self.log.error(
-                "failed stopping routines: %s" % ', '.join(rt_alive))
+                "failed stopping routines: %s" % ','.join(rt_alive))
 
     def add_routine(self, rthnd):
         if not isinstance(rthnd, BaseRoutine):
             raise RuntimeError("invalid routine handler: %s" % rthnd)
 
-        with self._rt_lock:
-            if rthnd.name in self._routines:
+        with self._rtlock:
+            if rthnd.name in self.routines:
                 raise ValueError(
                     "duplicate routine name: %s" % rthnd.name)
 
             rthnd.parent = self
-            self._routines[rthnd.name] = rthnd
+            self.routines[rthnd.name] = rthnd
 
         return True
 
     def del_routine(self, name):
-        with self._rt_lock:
-            rthnd = self._routines.get(name)
+        with self._rtlock:
+            rthnd = self.routines.get(name)
             if not rthnd:
-                self.log.warning("invalid routine name: %s" % name)
                 return False
 
             rthnd.stop(cancel=True)
             self.sleep(0.1)
             if not rthnd.is_alive():
-                del(self._routines[name])
+                del(self.routines[name])
 
         return True
 
     def start_routine(self, name):
-        with self._rt_lock:
-            rthnd = self._routines.get(name)
+        with self._rtlock:
+            rthnd = self.routines.get(name)
             if not rthnd:
-                self.log.warning("invalid routine name: %s" % name)
                 return False
 
             if not rthnd.is_alive():
@@ -106,10 +105,9 @@ class SimpleService(BaseDaemon):
         return True
 
     def stop_routine(self, name, suspend=False, wait_exit=True):
-        with self._rt_lock:
-            rthnd = self._routines.get(name)
+        with self._rtlock:
+            rthnd = self.routines.get(name)
             if not rthnd:
-                self.log.warning("invalid routine name: %s" % name)
                 return False
 
             if rthnd.is_alive():
@@ -122,8 +120,8 @@ class SimpleService(BaseDaemon):
 
         ts = time.time() + self.exit_delay
         while time.time() <= ts:
-            with self._rt_lock:
-                rthnd = self._routines.get(name)
+            with self._rtlock:
+                rthnd = self.routines.get(name)
                 if not (rthnd and rthnd.is_alive()):
                     return True
             self.sleep(0.1)
@@ -132,17 +130,17 @@ class SimpleService(BaseDaemon):
         return False
 
     def check_routines(self):
-        with self._rt_lock:
-            for name in list(self._routines.keys()):
+        with self._rtlock:
+            for name in list(self.routines.keys()):
                 try:
-                    rthnd = self._routines.get(name)
+                    rthnd = self.routines.get(name)
 
                     # check if cacnelled routine
                     if rthnd.is_cancelled:
                         if rthnd.is_alive():
                             rthnd.stop(cancel=True)
                         else:
-                            del(self._routines[name])
+                            del(self.routines[name])
                         continue
 
                     # check if suspended routine
@@ -153,7 +151,7 @@ class SimpleService(BaseDaemon):
 
                     # check routine status
                     if not rthnd.is_alive():
-                        if rthnd.is_initialized:
+                        if rthnd.initial_run:
                             self.log.warning(
                                 "found dead routine: %s" % rthnd.name)
                         self.log.info(
@@ -161,7 +159,7 @@ class SimpleService(BaseDaemon):
                         rthnd.start()
 
                 except Exception as e:
-                    self.log.error(str(e), exc_info=bool(self.debug))
+                    self.log.error(str(e), exc_info=bool(self.debug >= 2))
 
 
 # service with command management pipe
@@ -230,7 +228,7 @@ class ManagedService(SimpleService):
                 reply = 'DONE'
         except Exception as e:
             reply = 'INTERNAL_ERROR'
-            self.log.error(e, exc_info=bool(self.debug))
+            self.log.error(e, exc_info=bool(self.debug >= 2))
 
         self.sleep(0.1)
         Pipe.send(self.manage_pipe, reply.encode(), wait_peer=False)
