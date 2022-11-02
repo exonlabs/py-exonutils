@@ -11,7 +11,7 @@ class BaseWebView(object):
     # allowed methods for view
     methods = ['GET', 'POST']
 
-    def __init__(self, name=None, logger=None):
+    def __init__(self, name=None, logger=None, debug=0):
         # view name
         self.name = name if name else self.__class__.__name__
         # view parent handler
@@ -19,7 +19,7 @@ class BaseWebView(object):
         # view logger
         self.log = logger
         # debug mode
-        self.debug = 0
+        self.debug = debug
 
     def initialize(self):
         if not self.parent:
@@ -30,10 +30,10 @@ class BaseWebView(object):
             self.log = logging.getLogger(self.name)
             self.log.parent = self.parent.log
             self.log.level = self.parent.log.level
+
+        self.debug = self.parent.debug
         if not self.debug and self.log.level == logging.DEBUG:
             self.debug = 1
-
-        self.log.debug("initializing")
 
     def dispatch_request(self, *args, **kwargs):
         # exec before request handlers

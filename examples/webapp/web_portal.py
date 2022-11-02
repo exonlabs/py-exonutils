@@ -80,7 +80,7 @@ def main():
 
         websrv = SimpleWebServer(
             'WebPortal', options=APP_OPTIONS,
-            logger=logger, reqlogger=reqlog)
+            logger=logger, reqlogger=reqlog, debug=args.debug)
         websrv.initialize()
 
         for view_cls in BaseWebView.__subclasses__():

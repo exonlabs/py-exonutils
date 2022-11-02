@@ -18,13 +18,14 @@ __all__ = []
 
 class SimpleWebServer(object):
 
-    def __init__(self, name, options={}, logger=None, reqlogger=None):
+    def __init__(self, name, proctitle='', options={}, logger=None,
+                 reqlogger=None, debug=0):
         # web server name
         self.name = name
         # process title to show in os process table
-        self.proctitle = self.name
+        self.proctitle = proctitle or name
         # debug mode
-        self.debug = 0
+        self.debug = debug
 
         # web server config options
         self.options = copy.deepcopy(options)
@@ -100,7 +101,7 @@ class SimpleWebServer(object):
             if hasattr(e, 'name') and hasattr(e, 'code'):
                 return e.name, e.code
             else:
-                self.log.error(str(e), exc_info=bool(self.bebug))
+                self.log.error(str(e), exc_info=bool(self.debug))
                 return "Internal Server Error", 500
 
         return app
