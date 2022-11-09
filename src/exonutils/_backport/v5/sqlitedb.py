@@ -545,6 +545,10 @@ class DatabaseHandler(object):
     def session_handler(self):
         return SessionHandler(self.session_factory())
 
+    # alias
+    def session(self):
+        return SessionHandler(self.session_factory())
+
 
 # create database tables and initial data
 def init_database(dbh, models):
