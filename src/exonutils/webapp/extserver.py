@@ -115,6 +115,9 @@ class WebArbiter(Arbiter):
             self.pidfile.create(self.pid)
         self.cfg.on_starting(self)
 
+        # store root process PID
+        self.app.websrv.app.config['ROOT_PID'] = self.pid
+
         self.init_signals()
 
         if not self.LISTENERS:
