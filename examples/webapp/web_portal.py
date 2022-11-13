@@ -84,7 +84,7 @@ def main():
         websrv.initialize()
 
         for view_cls in BaseWebView.__subclasses__():
-            websrv.add_view(view_cls())
+            websrv.add_view(view_cls)
 
         if args.extsrv:
             ext_websrv = ExtWebServer(websrv, options=EXT_OPTIONS)

@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import logging
 from flask import request
 
 __all__ = []
@@ -22,18 +21,7 @@ class BaseWebView(object):
         self.debug = debug
 
     def initialize(self):
-        if not self.parent:
-            raise RuntimeError(
-                "INVALID_PARAMS - no parent handler defined")
-
-        if not self.log:
-            self.log = logging.getLogger(self.name)
-            self.log.parent = self.parent.log
-            self.log.level = self.parent.log.level
-
-        self.debug = self.parent.debug
-        if not self.debug and self.log.level == logging.DEBUG:
-            self.debug = 1
+        pass
 
     def dispatch_request(self, *args, **kwargs):
         # exec before request handlers

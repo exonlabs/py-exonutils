@@ -3,6 +3,7 @@ import os
 import uuid
 import copy
 import logging
+import inspect
 from flask import Flask
 from jinja2 import BaseLoader
 
@@ -53,10 +54,16 @@ class SimpleWebServer(object):
             self.app = self.create_app()
 
     def add_view(self, view_hnd):
-        if not isinstance(view_hnd, BaseWebView):
+        if inspect.isclass(view_hnd) and issubclass(view_hnd, BaseWebView):
+            view_hnd = view_hnd()
+        elif not isinstance(view_hnd, BaseWebView):
             raise RuntimeError("INVALID_VIEW - %s" % view_hnd)
 
         view_hnd.parent = self
+        if not view_hnd.log:
+            view_hnd.log = self.log
+        if not view_hnd.debug:
+            view_hnd.debug = self.debug
         view_hnd.initialize()
         for url, endpoint in view_hnd.routes:
             self.app.add_url_rule(
