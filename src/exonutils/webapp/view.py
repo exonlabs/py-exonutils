@@ -23,24 +23,32 @@ class BaseWebView(object):
     def initialize(self):
         pass
 
-    def dispatch_request(self, *args, **kwargs):
+    # check xhr/ajax request type
+    @classmethod
+    def is_xhrequest(cls):
+        request_xhr = request.headers.get('X-Requested-With')
+        if request_xhr and request_xhr == 'XMLHttpRequest':
+            return True
+        return False
+
+    def dispatch_request(self, **kwargs):
         # exec before request handlers
         if hasattr(self, 'before_request'):
-            response = self.before_request(*args, **kwargs)
+            response = self.before_request(**kwargs)
             if response is not None:
                 return response
 
         # dispatch request
-        response = self.handle_request(
-            request.method.lower(), *args, **kwargs)
+        response = self.handle_request(**kwargs)
 
         # exec after request handlers
         if hasattr(self, 'after_request'):
-            return self.after_request(response, *args, **kwargs)
+            return self.after_request(response, **kwargs)
 
         return response
 
-    def handle_request(self, method, *args, **kwargs):
+    def handle_request(self, **kwargs):
+        method = request.method.lower()
         if not hasattr(self, method):
             # use GET method instead of HEAD if not implemented
             if method == 'head' and hasattr(self, 'get'):
@@ -48,19 +56,19 @@ class BaseWebView(object):
             else:
                 return "Method Not Allowed", 405
 
-        return getattr(self, method)(*args, **kwargs)
+        return getattr(self, method)(**kwargs)
 
-    # def before_request(self, *args, **kwargs):
+    # def before_request(self, **kwargs):
     #     return None
 
-    # def after_request(self, response, *args, **kwargs):
+    # def after_request(self, response, **kwargs):
     #     return response
 
-    # def head(self, *args, **kwargs):
+    # def head(self, **kwargs):
     #     raise NotImplementedError()
 
-    # def get(self, *args, **kwargs):
+    # def get(self, **kwargs):
     #     raise NotImplementedError()
 
-    # def post(self, *args, **kwargs):
+    # def post(self, **kwargs):
     #     raise NotImplementedError()
