@@ -101,10 +101,10 @@ class SimpleWebServer(object):
         @app.errorhandler(Exception)
         def exception_handler(e):
             if hasattr(e, 'name') and hasattr(e, 'code'):
-                return e.name, e.code
+                return str(e.name).upper(), e.code
             else:
                 self.log.error(str(e), exc_info=bool(self.debug))
-                return "Internal Server Error", 500
+                return "INTERNAL SERVER ERROR", 500
 
         return app
 

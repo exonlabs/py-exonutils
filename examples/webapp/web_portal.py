@@ -69,7 +69,7 @@ def main():
             '-x', dest='debug', action='count', default=0,
             help='set debug modes')
         pr.add_argument(
-            '--extsrv', dest='extsrv', action='store_true',
+            '--ext-websrv', dest='ext_websrv', action='store_true',
             help="use extended gunicorn web server")
         args = pr.parse_args()
 
@@ -86,7 +86,7 @@ def main():
         for view_cls in BaseWebView.__subclasses__():
             websrv.add_view(view_cls)
 
-        if args.extsrv:
+        if args.ext_websrv:
             ext_websrv = ExtWebServer(websrv, options=EXT_OPTIONS)
             WebArbiter(ext_websrv).run()
         else:
