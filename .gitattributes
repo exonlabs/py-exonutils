@@ -1,0 +1,4 @@
+Makefile linguist-vendored
+LICENSE linguist-vendored
+*.md linguist-vendored
+*.sh linguist-vendored
