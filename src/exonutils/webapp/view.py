@@ -26,10 +26,14 @@ class BaseWebView(object):
     # check xhr/ajax request type
     @classmethod
     def is_xhrequest(cls):
-        request_xhr = request.headers.get('X-Requested-With')
-        if request_xhr and request_xhr == 'XMLHttpRequest':
-            return True
-        return False
+        return bool(
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest')
+
+    # check json or xhr/ajax request type
+    @classmethod
+    def is_jsrequest(cls):
+        return request.is_json or bool(
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest')
 
     def dispatch_request(self, **kwargs):
         # exec before request handlers
