@@ -1,33 +1,32 @@
 # -*- coding: utf-8 -*-
 import os
-import time
 from tempfile import gettempdir
 
-from exonutils.utils.pipe import Pipe
+from exonutils.utils.pipe import NamedPipe
 
 
 def main():
     fpath = os.path.join(gettempdir(), 'foobar.pipe')
 
     try:
-        print("\nOpen Pipe: %s" % fpath)
-        Pipe.open(fpath)
+        pipe = NamedPipe(fpath)
 
-        time.sleep(3)
+        print("\nOpen Pipe: %s" % fpath)
+        pipe.open()
 
         print("\nChecking Peer")
-        if Pipe.send(fpath, b"HELLO\n", wait_peer=False):
+        if pipe.send(b"HELLO\n", timeout=5):
             print("-- Peer Connected")
         else:
-            print("-- No Peer")
+            print("-- No Peer yet")
 
         msg = "MY_MESSAGE\n"
-        print("\nSending Message: %s" % msg.strip())
-        Pipe.send(fpath, msg.encode())
+        print("\nSending Message (waiting peer): %s" % msg.strip())
+        pipe.send(msg.encode())
 
         print("\nReceiving:")
         try:
-            res = Pipe.recv(fpath, timeout=5)
+            res = pipe.recv(timeout=5)
             if res:
                 print("-- received: %s" % res.decode().strip())
             else:
@@ -38,14 +37,14 @@ def main():
         msg = "COMMAND\n"
         print("\nSend Wait: %s" % msg.strip())
         try:
-            res = Pipe.send_wait(fpath, msg.encode(), timeout=5)
+            res = pipe.send_wait(msg.encode(), timeout=5)
             print("-- received: %s" % res.decode().strip())
         except Exception as e:
             print("-- error: %s" % e)
 
     finally:
         print("\nClose pipe")
-        Pipe.close(fpath)
+        pipe.close()
 
     print()
 
