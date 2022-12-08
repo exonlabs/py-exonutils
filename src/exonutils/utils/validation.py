@@ -8,7 +8,7 @@ def is_alpha(data):
         try:
             if data.isalpha():
                 return True
-        except:
+        except Exception:
             pass
     return False
 
@@ -19,7 +19,7 @@ def is_alphanum(data):
         try:
             if data.isalnum():
                 return True
-        except:
+        except Exception:
             pass
     return False
 
@@ -30,7 +30,7 @@ def is_digit(data):
         try:
             if str(data).isdigit():
                 return True
-        except:
+        except Exception:
             pass
     return False
 
@@ -41,7 +41,7 @@ def is_number(data):
         try:
             if re.search('^[0-9-]+$', data):
                 return True
-        except:
+        except Exception:
             pass
     return False
 
@@ -52,7 +52,7 @@ def is_decimal(data):
         try:
             if re.search('^[0-9-]+(.[0-9]+)?$', data):
                 return True
-        except:
+        except Exception:
             pass
     return False
 
@@ -64,7 +64,7 @@ def is_tcp_ipv4(data):
             parts = [(0 <= int(k) <= 255) for k in str(data).split('.')]
             if len(parts) == 4 and all(parts):
                 return True
-        except:
+        except Exception:
             pass
     return False
 
@@ -76,6 +76,6 @@ def is_tcp_port(data):
             port = int(data)
             if 1 <= port <= 65535:
                 return True
-        except:
+        except Exception:
             pass
     return False

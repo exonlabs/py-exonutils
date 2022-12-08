@@ -5,7 +5,7 @@ try:
     import readline
     readline.set_completer_delims(' \t\n;')
     readline.parse_and_bind("tab: complete")
-except:
+except Exception:
     pass
 try:
     import colorama

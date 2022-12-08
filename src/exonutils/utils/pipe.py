@@ -28,7 +28,7 @@ class Pipe(object):
         else:
             try:
                 fd = os.open(path, os.O_WRONLY | os.O_NONBLOCK)
-            except:
+            except Exception:
                 # no peer connected
                 return False
         try:
