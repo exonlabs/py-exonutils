@@ -2,7 +2,7 @@
 import time
 import threading
 
-from exonutils.utils.pipe import Pipe
+from exonutils.utils.pipe import NamedPipe
 
 from .daemon import BaseDaemon
 from .routine import BaseRoutine
@@ -88,7 +88,7 @@ class SimpleService(BaseDaemon):
             rthnd.stop(cancel=True)
             self.sleep(0.1)
             if not rthnd.is_alive():
-                del(self.routines[name])
+                del(self.routines[name])  # noqa
 
         return True
 
@@ -140,7 +140,7 @@ class SimpleService(BaseDaemon):
                         if rthnd.is_alive():
                             rthnd.stop(cancel=True)
                         else:
-                            del(self.routines[name])
+                            del(self.routines[name])  # noqa
                         continue
 
                     # check if suspended routine
@@ -167,8 +167,6 @@ class ManagedService(SimpleService):
 
     # management pipe path
     manage_pipe = ''
-    # management pipe max read block size
-    manage_pipe_size = 1024
 
     # command handler callback function
     # function args: service instance and command to handle
@@ -176,17 +174,27 @@ class ManagedService(SimpleService):
 
     def initialize(self):
         super(ManagedService, self).initialize()
-        if not self.manage_pipe:
+        if not (self.manage_pipe and self.cmdhandler_callback):
             return
 
         self._last_monitor = 0
 
-        # open management pipe
-        Pipe.open(self.manage_pipe, perm=0o666)
+        # init input pipes
+        self.in_pipe = NamedPipe('%s.in' % self.manage_pipe)
+        self.in_pipe.cancel_event = self.term_event
+        self.in_pipe.open(perm=0o666)
+        self.recv_timeout = max(int(self.monitor_interval / 2), 1)
+
+        # init output pipes
+        self.out_pipe = NamedPipe('%s.out' % self.manage_pipe)
+        self.out_pipe.cancel_event = self.term_event
+        self.out_pipe.open(perm=0o666)
+        self.send_timeout = 3
+
         self._pipe_lock = threading.Lock()
 
     def execute(self):
-        if not self.manage_pipe:
+        if not (self.manage_pipe and self.cmdhandler_callback):
             super(ManagedService, self).execute()
             return
 
@@ -197,39 +205,30 @@ class ManagedService(SimpleService):
             self._last_monitor = time.time()
 
         # wait and handle commands
-        command = Pipe.recv(
-            self.manage_pipe,
-            size=self.manage_pipe_size,
-            timeout=max(int(self.monitor_interval / 2), 1),
-            break_event=self.term_event).decode().strip()
+        command = self.in_pipe.recv(
+            timeout=self.recv_timeout).decode().strip()
         if command:
             self.handle_command(command)
 
     def terminate(self):
         # close management pipe
-        if self.manage_pipe:
-            Pipe.close(self.manage_pipe)
+        if self.manage_pipe and self.cmdhandler_callback:
+            self.in_pipe.close()
+            self.out_pipe.close()
             self._pipe_lock = None
 
         super(ManagedService, self).terminate()
 
     def handle_command(self, command):
-        self.log.info("command: %s" % command)
-
-        if not self.cmdhandler_callback:
-            if self.manage_pipe:
-                Pipe.send(self.manage_pipe, b"REJECTED", wait_peer=False)
-            self.log.warning("REJECTED, no command handler defined")
-            return
-
         try:
             reply = self.cmdhandler_callback(self, command)
             if not reply:
                 reply = 'DONE'
         except Exception as e:
             reply = 'INTERNAL_ERROR'
-            self.log.error(e, exc_info=bool(self.debug >= 2))
+            self.log.error(
+                "COMMAND_ERROR: %s - %s" % (command, e),
+                exc_info=bool(self.debug >= 2))
 
-        self.sleep(0.1)
-        Pipe.send(self.manage_pipe, reply.encode(), wait_peer=False)
-        self.log.info("reply: %s" % reply)
+        self.out_pipe.send(
+            reply.encode(), timeout=self.send_timeout)
