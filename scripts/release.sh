@@ -7,6 +7,10 @@ VERSION=$(grep '__version__ = "' src/${PKGNAME}/__init__.py \
 
 RELEASE_TAG=v${VERSION}
 
+SETUPENV_PATH=../venv_py3
+ENV_PYTHON=${SETUPENV_PATH}/bin/python
+ENV_PIP=${SETUPENV_PATH}/bin/pip
+
 
 echo -e "\n* Releasing: ${RELEASE_TAG}"
 
@@ -40,4 +44,7 @@ sed -i "s|^__version__ = \".*|__version__ = \"${NEW_VER}\"|g" \
     src/${PKGNAME}/__init__.py
 git commit -m "Bump version to '${NEW_VER}'" src/${PKGNAME}/__init__.py
 
-echo -e "* Released: ${PKGNAME} ${VERSION}\n"
+# install latest dev after version bump
+${ENV_PIP} install -e ./
+
+echo -e "\n* Released: ${PKGNAME} ${VERSION}\n"
