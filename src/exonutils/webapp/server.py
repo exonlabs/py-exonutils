@@ -73,13 +73,16 @@ class SimpleWebServer(object):
 
     def create_app(self):
         # check and adjust app options
-        if not self.options.get('secret_key', None):
-            self.options['secret_key'] = uuid.uuid5(
-                uuid.uuid1(), uuid.uuid4().hex).hex
-        if not self.options.get('max_content_length', None):
-            self.options['max_content_length'] = 10485760  # 10 MiB
-        self.options['trap_http_exceptions'] = True
-        self.options['trap_bad_request_errors'] = True
+        self.options.update({
+            'secret_key':
+                self.options.get('secret_key') or
+                uuid.uuid5(uuid.uuid1(), uuid.uuid4().hex).hex,
+            'max_content_length':
+                self.options.get('max_content_length') or
+                10485760,  # 10 MiB
+            'trap_http_exceptions': True,
+            'trap_bad_request_errors': True,
+        })
 
         # create flask app
         app = Flask(

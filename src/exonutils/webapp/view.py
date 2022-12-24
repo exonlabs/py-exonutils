@@ -32,7 +32,8 @@ class BaseWebView(object):
     # check json or xhr/ajax request type
     @classmethod
     def is_jsrequest(cls):
-        return request.is_json or bool(
+        return bool(
+            'json' in str(request.headers.get('Content-Type')) or
             request.headers.get('X-Requested-With') == 'XMLHttpRequest')
 
     def dispatch_request(self, **kwargs):
