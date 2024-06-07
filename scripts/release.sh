@@ -1,7 +1,7 @@
 #!/bin/bash
 cd $(dirname $(readlink -f $0))/..
 
-PKGNAME=exonutils
+PKGNAME=$(grep 'name = ' setup.cfg |head -n 1 |cut -d'=' -f2 |xargs)
 VERSION=$(grep '__version__ = "' src/${PKGNAME}/__init__.py \
     |head -n 1 |cut -d'"' -f2 |xargs |sed 's|\.dev.*||g')
 
