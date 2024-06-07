@@ -1,0 +1,33 @@
+[project]
+name = "exonutils"
+version = "7.0.dev"
+description = "General tools and utils for applications."
+readme = "README.md"
+license = {file = "LICENSE.txt"}
+authors = [{name = "ExonLabs", email = "info@exonlabs.net"}]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "colorama>=0.4,<1.0",
+    "setproctitle>=1.3,<2.0",
+]
+
+[project.urls]
+Documentation = "https://exonlabs.github.io/py-exonutils"
+Repository = "https://github.com/exonlabs/py-exonutils"
+
+[build-system]
+requires = ["setuptools >= 68.0"]
+build-backend = "setuptools.build_meta"

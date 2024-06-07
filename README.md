@@ -1,6 +1,6 @@
 # ExonUtils #
 
-General utilities and helpers for applications.
+General tools and utils for applications.
 
 
 ## Installing ##
@@ -13,6 +13,6 @@ pip install -U exonutils
 
 ## License ##
 
-**copyright :**  2019-2022, ExonLabs. All rights reserved.
+**copyright :**  2019 ExonLabs, All rights reserved.
 
-**license :**  BSD, see LICENSE for more details.
+**license :**  BSD 3-Clause, see LICENSE for more details.

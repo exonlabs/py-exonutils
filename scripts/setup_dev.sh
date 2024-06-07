@@ -26,7 +26,9 @@ echo -e "\n- updating virtualenv packages ..."
 ${ENV_PIP} install -U pip setuptools wheel
 
 echo -e "\n- installing dev requirements ..."
-${ENV_PIP} install -Ur requirements/dev.txt
+if test -f requirements/dev.txt ;then
+    ${ENV_PIP} install -Ur requirements/dev.txt
+fi
 
 echo -e "\n- installing in develop mode ..."
 ${ENV_PIP} install -e ./
