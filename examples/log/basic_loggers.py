@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from exonutils import xlog
+from exonutils.xlog.formatter import SimpleFormatter, JsonFormatter
 
 
 def log_messages(logger: xlog.Logger):
@@ -28,7 +29,7 @@ def main():
 
     # adjust formatters
     print("\n-- logging without source formatter --")
-    logger.set_formatter(xlog.SimpleFormatter())
+    logger.set_formatter(SimpleFormatter())
 
     print("\n* logging level: ERROR")
     logger.level = xlog.ERROR
@@ -44,7 +45,7 @@ def main():
 
     # adjust formatters
     print("\n-- logging json formatter --")
-    logger.set_formatter(xlog.JsonFormatter())
+    logger.set_formatter(JsonFormatter())
     logger.level = xlog.TRACE4
     log_messages(logger)
 

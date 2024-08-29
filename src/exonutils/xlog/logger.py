@@ -37,9 +37,20 @@ class Logger(object):
 
     def child_logger(self, name: str) -> Logger:
         log = Logger(name)
+        log._parent = self
         log.level = self.level
         log._formatter = self._formatter
+        return log
+
+    def sub_logger(self, prefix: str) -> Logger:
+        log = Logger(self.name)
         log._parent = self
+        log.level = self.level
+        log._formatter = Formatter(
+            self._formatter.record_format,
+            self._formatter.time_format,
+            self._formatter.escape_msg)
+        log._formatter.msg_prefix = prefix
         return log
 
     def set_formatter(self, frmt: Formatter):
@@ -107,7 +118,6 @@ class Logger(object):
 
 
 # ///////////////////// creator functions
-
 
 def StdoutLogger(name: str) -> Logger:
     from .handlers import StdoutHandler

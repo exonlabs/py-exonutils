@@ -16,6 +16,7 @@ class StdoutHandler(Handler):
 
     def handle_record(self, r: str):
         sys.stdout.write(str(r) + "\n")
+        sys.stdout.flush()
 
 
 # Write log messages to file
@@ -27,3 +28,4 @@ class FileHandler(Handler):
     def handle_record(self, r: str):
         with open(self.filepath, 'a') as f:
             f.write(str(r) + "\n")
+            f.flush()

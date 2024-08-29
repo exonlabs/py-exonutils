@@ -5,6 +5,7 @@ __all__ = []
 
 class Level(int):
 
+    # returns string of log level
     def __str__(self) -> str:
         if self >= PANIC:
             return "PANIC"
@@ -29,6 +30,7 @@ class Level(int):
         return "TRACE"
 
 
+# logging levels
 TRACE4 = Level(-50)
 TRACE3 = Level(-40)
 TRACE2 = Level(-30)
