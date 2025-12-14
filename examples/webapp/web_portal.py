@@ -4,7 +4,6 @@ import logging
 from argparse import ArgumentParser
 
 from exonutils.webapp.server import SimpleWebServer
-from exonutils.webapp.extserver import ExtWebServer, WebArbiter
 from exonutils.webapp.view import BaseWebView
 
 logging.basicConfig(
@@ -87,6 +86,7 @@ def main():
             websrv.add_view(view_cls)
 
         if args.ext_websrv:
+            from exonutils.webapp.extserver import ExtWebServer, WebArbiter
             ext_websrv = ExtWebServer(websrv, options=EXT_OPTIONS)
             WebArbiter(ext_websrv).run()
         else:

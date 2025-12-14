@@ -43,8 +43,9 @@ class ExtWebServer(BaseApplication):
 
         # check engine options
         self.options.update({
-            'reuse_port': True,
-            'workers': self.options.get('workers', 0) or os.cpu_count(),
+            'reuse_port': self.options.get('reuse_port', True) \
+                if "unix" not in (self.options.get('bind') or "") else False,
+            'workers': self.options.get('workers') or 2,
             'worker_class': self.options.get('worker_class', 'sync'),
             'logger_class': _Logger,
             'accesslog': '-',
