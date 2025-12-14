@@ -1,34 +1,43 @@
 #!/bin/bash
-cd $(dirname $(readlink -f $0))/..
+set -euo pipefail
 
-SYS_PYTHON=/usr/bin/python3
-
-SETUPENV_PATH=../venv_py3
-ENV_PYTHON=${SETUPENV_PATH}/bin/python
-ENV_PIP=${SETUPENV_PATH}/bin/pip
+cd "$(dirname "$(readlink -f "$0")")/.."
+source scripts/common.sh
 
 
-echo -e "\n* Creating DEV virtualenv using '${SYS_PYTHON}'"
+info_msg "\nSetting up development environment"
 
-if ! test -x ${SYS_PYTHON} ;then
-    echo -e "\n-- Failed!! '${SYS_PYTHON}' doesn't exist\n"
+# checking python interpreter
+head_msg "\nChecking Python interpreter ..."
+if ! [[ -x "${SYS_PYTHON}" ]]; then
+    error_msg "Error!! no suitable python executable found\n"
+    exit 1
+fi
+text_msg "Using Python interpreter: ${SYS_PYTHON}"
+
+# checking python virtualenv package
+if ! "${SYS_PYTHON}" -m virtualenv --version &>/dev/null; then
+    error_msg "Error!! failed checking 'python -m virtualenv --version'\n"
     exit 1
 fi
 
-echo -e "\n- creating virtualenv ..."
-${SYS_PYTHON} -m virtualenv ${SETUPENV_PATH}
-if ! (test -x ${ENV_PYTHON} && test -x ${ENV_PIP}) ;then
-    echo -e "\n-- Error!! failed to create virtualenv\n"
+head_msg "\nCreating virtualenv at ${VENV_PATH} ..."
+(set -x
+    "${SYS_PYTHON}" -m virtualenv "${VENV_PATH}"
+)
+if ! [[ -x "${VENV_PYTHON}" && -x "${VENV_PIP}" ]]; then
+    error_msg "Error!! Failed to create virtualenv\n"
     exit 1
 fi
+(set -x
+    "${VENV_PIP}" install -U pip
+    "${VENV_PIP}" install -U setuptools wheel build
+)
 
-echo -e "\n- updating virtualenv packages ..."
-${ENV_PIP} install -U pip setuptools wheel
+head_msg "\nInstalling project in editable (dev) mode ..."
+(set -x
+    "${VENV_PIP}" install -e ./[dev]
+)
 
-echo -e "\n- installing dev requirements ..."
-${ENV_PIP} install -Ur requirements/dev.txt
-
-echo -e "\n- installing in develop mode ..."
-${ENV_PIP} install -e ./
-
-echo -e "\n* Done\n"
+success_msg "\nDevelopment environment is ready"
+text_msg "To activate run:\n    source ${VENV_PATH}/bin/activate\n"

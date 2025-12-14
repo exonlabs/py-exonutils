@@ -11,6 +11,5 @@
 *.egg-info/
 *.dist-info/
 __pycache__/
-/dist/
-/build/
-/tmp/
+/dist*/
+/build*/

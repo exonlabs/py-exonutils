@@ -1,4 +1,7 @@
-include *.md LICENSE
+include *.md *.txt
+
+graft src
 graft examples
-graft src/exonutils
-global-exclude *.py[co] Makefile MANIFEST.in
+graft tests
+
+global-exclude *.py[co]

@@ -1,50 +1,71 @@
 #!/bin/bash
-cd $(dirname $(readlink -f $0))/..
+set -euo pipefail
 
-PKGNAME=exonutils
-VERSION=$(grep '__version__ = "' src/${PKGNAME}/__init__.py \
-    |head -n 1 |cut -d'"' -f2 |xargs |sed 's|\.dev.*||g')
+cd "$(dirname "$(readlink -f "$0")")/.."
+source scripts/common.sh
 
-RELEASE_TAG=v${VERSION}
+RELEASE_VER=$(echo "${VERSION}" | sed 's|\.dev.*||g')
+RELEASE_TAG=v${RELEASE_VER}
 
-SETUPENV_PATH=../venv_py3
-ENV_PYTHON=${SETUPENV_PATH}/bin/python
-ENV_PIP=${SETUPENV_PATH}/bin/pip
+NEXT_VER=$(echo "${RELEASE_VER}" \
+    |awk -F. '{for(i=1;i<NF;i++){printf $i"."}{printf $NF+1".dev"}}')
 
+# setting version
+function set_version() {
+    sed -i "s|^version = \".*\"$|version = \"${1}\"|g" ${METAFILE}
+}
 
-echo -e "\n* Releasing: ${RELEASE_TAG}"
+info_msg "\nReleasing: ${PACKAGE} ver ${RELEASE_VER}"
 
-# check previous versions tags
-if git tag |grep -wq "${RELEASE_TAG}" ;then
-    echo -e "\n-- Error!! tag '${RELEASE_TAG}' already exists\n"
+# Check for uncommitted changes
+head_msg "\nChecking for uncommitted changes ..."
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    error_msg "Error!! Uncommitted changes detected!" \
+        "Please commit or stash them before releasing.\n"
     exit 1
 fi
 
-# adjust release version
-sed -i "s|^__version__ = \".*|__version__ = \"${VERSION}\"|g" \
-    src/${PKGNAME}/__init__.py
+# Check if tag already exists
+head_msg "\nChecking release tags ..."
+if git tag |grep -wq "${RELEASE_TAG}" ;then
+    error_msg "Error!! tag '${RELEASE_TAG}' already exists\n"
+    exit 1
+fi
 
 # building release packages
+set_version ${RELEASE_VER}
 if ! ./scripts/build.sh ;then
-    echo -e "\n-- Error!! failed building new release packages.\n"
+    error_msg "Error!! failed building new release packages.\n"
+    text_msg "Reverting ..."
+    git checkout -- ${METAFILE}
     exit 1
 fi
 
-# setting release tag
-git commit -m "Release version '${VERSION}'" src/${PKGNAME}/__init__.py
-if ! git tag "${RELEASE_TAG}" ;then
-    echo -e "\n-- Error!! failed adding tag '${RELEASE_TAG}'\n"
+# Git commit and tag for the release
+head_msg "Committing and tagging release ..."
+(set -x
+    git add ${METAFILE}
+    git commit -m "Release version ${RELEASE_VER}" ${METAFILE}
+)
+if ! git tag "${RELEASE_TAG}" ; then
+    error_msg "Error!! Failed adding tag '${RELEASE_TAG}'\n"
     exit 1
 fi
 
-# bump new version
-NEW_VER=$(echo "${VERSION}" \
-    |awk -F. '{for(i=1;i<NF;i++){printf $i"."}{printf $NF+1".dev"}}')
-sed -i "s|^__version__ = \".*|__version__ = \"${NEW_VER}\"|g" \
-    src/${PKGNAME}/__init__.py
-git commit -m "Bump version to '${NEW_VER}'" src/${PKGNAME}/__init__.py
+# bump to next version
+head_msg "\nSetting new version ..."
+set_version ${NEXT_VER}
+(set -x
+    git add ${METAFILE}
+    git commit -m "Bump version to ${NEXT_VER}" ${METAFILE}
+)
 
 # install latest dev after version bump
-${ENV_PIP} install -e ./
+head_msg "\nInstalling new version in editable (dev) mode ..."
+(set -x
+    "${VENV_PIP}" install -e ./[dev]
+)
 
-echo -e "\n* Released: ${PKGNAME} ${VERSION}\n"
+success_msg "\nSuccessfully released:"
+text_msg "  ${PACKAGE} ${RELEASE_VER} tag (${RELEASE_TAG})"
+echo -e "\n"
