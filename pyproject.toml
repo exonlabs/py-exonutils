@@ -1,6 +1,6 @@
 [project]
 name = "exonutils"
-version = "6.7"
+version = "6.8.dev"
 description = "General tools and utils for modern Python applications."
 readme = "README.md"
 license = "BSD-3-Clause"
