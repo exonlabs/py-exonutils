@@ -6,6 +6,7 @@
 *.pyc
 *.log
 *.db
+*.env
 
 # ignore folders
 *.egg-info/

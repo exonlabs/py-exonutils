@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-cd "$(dirname "$(readlink -f "$0")")/.."
-source scripts/common.sh
+cd "$(dirname "$(realpath -e "${BASH_SOURCE[0]}")")/.."
+source environ
 
 
 info_msg "\nInstall and Update host requirements"

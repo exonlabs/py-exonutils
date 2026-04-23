@@ -1,44 +1,36 @@
 .DEFAULT_GOAL := help
 
+.ONESHELL:
 SHELL := /bin/bash
 
-METAFILE := pyproject.toml
-PACKAGE := $(shell sed -n 's|^name = "\([^"]*\)"$$|\1|p' $(METAFILE))
-AUTHOR := $(shell grep -A 1 'authors =' $(METAFILE) |sed -n 's|.*name = "\([^"]*\)".*|\1|p')
-VENV_BIN := $(shell realpath -m ~/.cache/$(AUTHOR)/py-dev/venv_py3/bin)
-
-# Color defs
-C_RESET = \033[0m
-C_HEAD = \033[0;33m
-C_INFO = \033[1;34m
-C_ERR = \033[1;31m
-C_OK = \033[1;32m
 
 .PHONY: help
 ## Show this help message
 help:
-	@echo -e "\n$(C_HEAD)Available targets:$(C_RESET)"
+	@source environ
+	@head_msg "\nAvailable targets:"
 	@awk '/^##/{sub(/^##[ ]*/,"",$$0);c=$$0;next}/^[A-Za-z0-9._-]+:([^=]|$$)/ \
-		{if(c){t=$$1;sub(/:/,"",t);printf"  $(C_INFO)%-15s$(C_RESET) \
-		%s\n",t,c}c="";next}/^[^#]/{c=""}' $(MAKEFILE_LIST)
+		{if(c){t=$$1;sub(/:/,"",t);printf"  %-20s%s\n",t,c}c="";next} \
+		/^[^#]/{c=""}' $(MAKEFILE_LIST)
 	@echo -e "\n"
 
 .PHONY: clean
-## Cleaning build and cache files
+## Clean build and cache files
 clean:
 	@rm -rf build*/ .pytest*/
 	@find . -type d -name '__pycache__' -exec rm -rf {} +
 	@find . -type f -name '*.pyc' -exec rm -f {} +
 
 .PHONY: clean-dist
-## Cleaning dist files
+## Clean dist files
 clean-dist:
 	@rm -rf dist/
 
 .PHONY: clean-all
 ## Clean all build, dist and cache files
 clean-all: clean clean-dist
-	@echo -e "$(C_HEAD)Clean all build, dist and cache files ...$(C_RESET)"
+	@source environ
+	@head_msg "Cleaning all build, dist and cache files ..."
 	@find . -type d -name '*.egg-info' -exec rm -rf {} +
 	@find . -type d -name '*.dist-info' -exec rm -rf {} +
 
@@ -55,31 +47,35 @@ setup-dev: clean-all
 .PHONY: pip-update
 ## Update virtualenv pip and installed packages
 pip-update:
-	@echo -e "\n$(C_INFO)Update virtualenv packages ...$(C_RESET)"
-	@bash -c "$(VENV_BIN)/pip3 install -U pip"
-	@bash -c "$(VENV_BIN)/pip3 freeze |sed -n 's|^\(.*\)==.*$$|\1|p' \
-		|xargs -r $(VENV_BIN)/pip3 install -U"
-	@echo -e "\n$(C_OK)Done$(C_RESET)\n"
+	@source environ
+	@info_msg "\nUpdate virtualenv packages ..."
+	@bash -c "$${VENV_PIP} install -U pip"
+	@bash -c "$${VENV_PIP} freeze |sed -n 's|^\(.*\)==.*$$|\1|p' \
+		|xargs -r $${VENV_PIP} install -U"
+	@echo -e "\n"
 
 .PHONY: auto-format
 ## Auto-format (black) Python code, tests and examples
 auto-format:
-	@echo -e "\n$(C_INFO)Auto-format Python code with black ...$(C_RESET)"
-	@bash -c "$(VENV_BIN)/black src/$(PACKAGE)/ tests/ examples/"
+	@source environ
+	@info_msg "\nAuto-format Python code with (black) ..."
+	@bash -c "$${VENV_PATH}/bin/black src/$${PACKAGE}/ tests/ examples/"
 	@echo -e "\n"
 
 .PHONY: lint-all
 ## Run Python linters (flake8) on code, tests and examples
 lint-all:
-	@echo -e "\n$(C_INFO)Running flake8 linters ...$(C_RESET)"
-	@bash -c "$(VENV_BIN)/flake8 src/$(PACKAGE) tests/ examples/"
+	@source environ
+	@info_msg "\nRunning flake8 linters ..."
+	@bash -c "$${VENV_PATH}/bin/flake8 src/$${PACKAGE} tests/ examples/"
 	@echo -e "\n"
 
 .PHONY: run-tests
 ## Run all project tests
 run-tests:
-	@echo -e "\n$(C_INFO)Running tests ...$(C_RESET)"
-	@bash -c "$(VENV_BIN)/pytest tests/"
+	@source environ
+	@info_msg "\nRunning tests ..."
+	@bash -c "$${VENV_PATH}/bin/pytest tests/"
 	@echo -e "\n"
 
 .PHONY: build

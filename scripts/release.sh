@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-cd "$(dirname "$(readlink -f "$0")")/.."
-source scripts/common.sh
+cd "$(dirname "$(realpath -e "${BASH_SOURCE[0]}")")/.."
+source environ
 
 RELEASE_VER=$(echo "${VERSION}" | sed 's|\.dev.*||g')
 RELEASE_TAG=v${RELEASE_VER}
@@ -12,7 +12,7 @@ NEXT_VER=$(echo "${RELEASE_VER}" \
 
 # setting version
 function set_version() {
-    sed -i "s|^version = \".*\"$|version = \"${1}\"|g" ${METAFILE}
+    sed -i "s|^version = \".*\"$|version = \"${1}\"|g" ${PROJFILE}
 }
 
 info_msg "\nReleasing: ${PACKAGE} ver ${RELEASE_VER}"
@@ -37,15 +37,15 @@ set_version ${RELEASE_VER}
 if ! ./scripts/build.sh ;then
     error_msg "Error!! failed building new release packages.\n"
     text_msg "Reverting ..."
-    git checkout -- ${METAFILE}
+    git checkout -- ${PROJFILE}
     exit 1
 fi
 
 # Git commit and tag for the release
 head_msg "Committing and tagging release ..."
 (set -x
-    git add ${METAFILE}
-    git commit -m "Release version ${RELEASE_VER}" ${METAFILE}
+    git add ${PROJFILE}
+    git commit -m "Release version ${RELEASE_VER}" ${PROJFILE}
 )
 if ! git tag "${RELEASE_TAG}" ; then
     error_msg "Error!! Failed adding tag '${RELEASE_TAG}'\n"
@@ -56,8 +56,8 @@ fi
 head_msg "\nSetting new version ..."
 set_version ${NEXT_VER}
 (set -x
-    git add ${METAFILE}
-    git commit -m "Bump version to ${NEXT_VER}" ${METAFILE}
+    git add ${PROJFILE}
+    git commit -m "Bump version to ${NEXT_VER}" ${PROJFILE}
 )
 
 # install latest dev after version bump
