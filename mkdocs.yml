@@ -1,0 +1,86 @@
+site_name: exonutils
+site_description: General tools and utils for modern Python applications.
+site_url: https://git.exonlabs.net/py-exonutils
+repo_url: https://git.exonlabs.net/py-exonutils
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+
+extra:
+  version:
+    provider: mike
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Changelog: changelog.md
+  - Modules:
+    - Overview: modules/index.md
+    - buffers:
+      - Overview: modules/buffers/index.md
+      - BaseBuffer: modules/buffers/common.md
+      - SimpleFileBuffer: modules/buffers/filebuffer.md
+      - SharedData / SharedBuffer / SharedQueueBuffer: modules/buffers/shareddata.md
+    - db:
+      - Overview: modules/db/index.md
+      - BaseEngine: modules/db/engine.md
+      - Session: modules/db/session.md
+      - DBHandler: modules/db/handlers.md
+      - BaseModel: modules/db/model.md
+      - Query: modules/db/query.md
+      - common: modules/db/common.md
+      - sqlalchemy:
+        - Overview: modules/db/sqlalchemy/index.md
+        - DBHandler: modules/db/sqlalchemy/handlers.md
+        - BaseModel: modules/db/sqlalchemy/model.md
+        - utils: modules/db/sqlalchemy/utils.md
+      - backends:
+        - Overview: modules/db/backends/index.md
+        - SQLite: modules/db/backends/sqlite.md
+        - MySQL: modules/db/backends/mysql.md
+        - PostgreSQL: modules/db/backends/pgsql.md
+        - MS SQL Server: modules/db/backends/mssql.md
+    - fileconfig:
+      - Overview: modules/fileconfig/index.md
+      - BaseFileConfig: modules/fileconfig/common.md
+      - JsonFileConfig: modules/fileconfig/jsonconfig.md
+      - BlobFileConfig: modules/fileconfig/blobconfig.md
+    - process:
+      - Overview: modules/process/index.md
+      - BaseDaemon: modules/process/daemon.md
+      - BaseRoutine: modules/process/routine.md
+      - SimpleService / ManagedService: modules/process/service.md
+    - services:
+      - Overview: modules/services/index.md
+      - FTPClient (native): modules/services/ftp.md
+      - FTPClient (shell): modules/services/ftp_shell.md
+    - utils:
+      - Overview: modules/utils/index.md
+      - Console: modules/utils/console.md
+      - Shell: modules/utils/shell.md
+      - NamedPipe: modules/utils/pipe.md
+      - validation: modules/utils/validation.md
+      - pkgtools: modules/utils/pkgtools.md
+    - webapp:
+      - Overview: modules/webapp/index.md
+      - BaseWebView: modules/webapp/view.md
+      - SimpleWebServer: modules/webapp/server.md
+      - ExtWebServer / WebArbiter: modules/webapp/extserver.md
+    - _backport:
+      - v5:
+        - Overview: modules/_backport/v5/index.md
+        - buffers: modules/_backport/v5/buffers.md
+        - config: modules/_backport/v5/config.md
+        - console: modules/_backport/v5/console.md
+        - daemon: modules/_backport/v5/daemon.md
+        - dbutils: modules/_backport/v5/dbutils.md
+        - misc: modules/_backport/v5/misc.md
+        - service: modules/_backport/v5/service.md
+        - sqlalchemydb: modules/_backport/v5/sqlalchemydb.md
+        - sqlitedb: modules/_backport/v5/sqlitedb.md
+        - webapp: modules/_backport/v5/webapp.md

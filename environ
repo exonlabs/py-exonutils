@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # check if terminal supports colors
-_has_color() { [ -t 1 ] && tput colors &>/dev/null && [ "$(tput colors)" -ge 8 ]; }
+_has_color() {
+    [ -t 1 ] && tput colors &>/dev/null && [ "$(tput colors)" -ge 8 ];
+}
 
 if _has_color; then
     _HEAD=$(tput setaf 3)
@@ -27,27 +29,9 @@ BASE_DIR=$(dirname "$(realpath -e "${BASH_SOURCE[0]}")")
 PROJFILE=${BASE_DIR}/pyproject.toml
 PACKAGE=$(sed -n 's|^name = "\([^"]*\)"$|\1|p' ${PROJFILE})
 VERSION=$(sed -n 's|^version = "\([^"]*\)"$|\1|p' ${PROJFILE})
-AUTHOR=$(grep -A 1 'authors =' ${PROJFILE} |sed -n 's|.*name = "\([^"]*\)".*|\1|p')
 
-
-if [[ -z "${PACKAGE}" ]]; then
-    error_msg "\nError!! package name not found or empty in ${PROJFILE}\n"
-    exit 1
-fi
-if [[ -z "${VERSION}" ]]; then
-    error_msg "\nError!! package version not found or empty in ${PROJFILE}\n"
-    exit 1
-fi
-if [[ -z "${AUTHOR}" ]]; then
-    error_msg "\nError!! package author not found or empty in ${PROJFILE}\n"
-    exit 1
-fi
-
-# application paths
-CACHE_PATH="$(realpath -m ~/.cache/${AUTHOR}/py-dev)"
-VENV_PATH="${CACHE_PATH}/venv_py3"
-VENV_PYTHON="${VENV_PATH}/bin/python3"
-VENV_PIP="${VENV_PATH}/bin/pip3"
+# virtualenv
+VENV_PATH="${BASE_DIR}/.venv"
 
 # Find latest available compatible Python (3.20 down to 3.9)
 SYS_PYTHON="$(which python3)"
@@ -58,7 +42,32 @@ for i in $(seq 20 -1 9); do
     fi
 done
 
-# load local .env params
+# load .env params
 if [ -f ${BASE_DIR}/.env ]; then
     source ${BASE_DIR}/.env
 fi
+if [ -f ${BASE_DIR}/.env.local ]; then
+    source ${BASE_DIR}/.env.local
+fi
+
+if ! [[ -x "${SYS_PYTHON}" ]]; then
+    error_msg "Error!! no suitable python executable found\n"
+    exit 1
+fi
+
+if [ ! -f "${PROJFILE}" ]; then
+    error_msg "\nError!! project.toml file not found\n"
+    exit 1
+fi
+if [[ -z "${PACKAGE}" ]]; then
+    error_msg "\nError!! package name not found or empty in ${PROJFILE}\n"
+    exit 1
+fi
+if [[ -z "${VERSION}" ]]; then
+    error_msg "\nError!! package version not found or empty in ${PROJFILE}\n"
+    exit 1
+fi
+
+# set virtualenv paths
+VENV_PYTHON="${VENV_PATH}/bin/python3"
+VENV_PIP="${VENV_PATH}/bin/pip3"

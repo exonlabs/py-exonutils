@@ -2,17 +2,58 @@
 set -euo pipefail
 
 cd "$(dirname "$(realpath -e "${BASH_SOURCE[0]}")")/.."
-source environ
 
+ENV_FILE="$(pwd)/.env"
+
+# handle .env before loading environ
+if [ -f "${ENV_FILE}" ]; then
+    echo -e "\nFound existing .env file:"
+    echo "--------------------------------------------------"
+    cat "${ENV_FILE}"
+    echo "--------------------------------------------------"
+    read -rp "  [U]se / [D]elete / [A]bort ? [U]: " _choice || true
+    case "${_choice,,}" in
+        a|A)
+            echo "Aborted."
+            exit 0
+            ;;
+        d|D)
+            rm -f "${ENV_FILE}"
+            echo "Deleted .env"
+            ;;
+        *)
+            echo "Using existing .env"
+            ;;
+    esac
+fi
+
+if [ ! -f "${ENV_FILE}" ]; then
+    _default_venv="$(pwd)/.venv"
+    echo -e "\nNo .env file found. Default settings:"
+    echo "--------------------------------------------------"
+    echo "VENV_PATH=\"${_default_venv}\""
+    echo "--------------------------------------------------"
+    read -rp "  [C]reate / [S]kip / [A]bort ? [C]: " _choice || true
+    case "${_choice,,}" in
+        a|A)
+            echo "Aborted."
+            exit 0
+            ;;
+        s|S)
+            echo "Skipping .env creation."
+            ;;
+        *)
+            echo "VENV_PATH=\"${_default_venv}\"" > "${ENV_FILE}"
+            echo "Created .env"
+            ;;
+    esac
+fi
+
+source environ
 
 info_msg "\nSetting up development environment"
 
-# checking python interpreter
-head_msg "\nChecking Python interpreter ..."
-if ! [[ -x "${SYS_PYTHON}" ]]; then
-    error_msg "Error!! no suitable python executable found\n"
-    exit 1
-fi
+# python interpreter
 text_msg "Using Python interpreter: ${SYS_PYTHON}"
 
 # checking python virtualenv package
@@ -31,12 +72,12 @@ if ! [[ -x "${VENV_PYTHON}" && -x "${VENV_PIP}" ]]; then
 fi
 (set -x
     "${VENV_PIP}" install -U pip
-    "${VENV_PIP}" install -U setuptools wheel build
+    "${VENV_PIP}" install -U setuptools wheel build twine
 )
 
 head_msg "\nInstalling project in editable (dev) mode ..."
 (set -x
-    "${VENV_PIP}" install -e ./[dev]
+    "${VENV_PIP}" install -e ".[dev,docs]"
 )
 
 success_msg "\nDevelopment environment is ready"

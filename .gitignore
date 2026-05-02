@@ -6,7 +6,9 @@
 *.pyc
 *.log
 *.db
-*.env
+.env
+.env.local
+.env.*.local
 
 # ignore folders
 *.egg-info/
@@ -14,3 +16,5 @@
 __pycache__/
 /dist*/
 /build*/
+/site*/
+.venv*/

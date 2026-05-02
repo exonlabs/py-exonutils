@@ -6,7 +6,7 @@ source environ
 
 BUILD_VER=${VERSION}
 echo "${BUILD_VER}" |grep -qE '^.*\.dev$' && {
-    BUILD_VER=${BUILD_VER}$(date +%y%m%d%H%M%S)
+    BUILD_VER=${BUILD_VER}$(date +%Y%m%d%H%M%S)
 }
 
 BUILD_FD="build_src"
@@ -27,7 +27,7 @@ text_msg "Found virtualenv: ${VENV_PATH}"
 head_msg "\nUpdating virtualenv pip and build toolchain ..."
 (set -x
     "${VENV_PIP}" install -U pip
-    "${VENV_PIP}" install -U setuptools wheel build
+    "${VENV_PIP}" install -U setuptools wheel build twine
 )
 
 head_msg "\nPreparing build directory ..."
@@ -35,8 +35,8 @@ rm -rf "${BUILD_FD}"
 mkdir -m 775 -p "${BUILD_FD}/src/${PKG_FD}"
 cp -rf "src/${PKG_FD}/"* "${BUILD_FD}/src/${PKG_FD}/"
 cp -rf pyproject.toml MANIFEST.in *.md *.txt "${BUILD_FD}/"
-[ -d examples ] && cp -rf examples/ "${BUILD_FD}/"
-[ -d tests ] && cp -rf tests/ "${BUILD_FD}/"
+[ -d examples ] && cp -rf examples/ "${BUILD_FD}/" || true
+[ -d tests ] && cp -rf tests/ "${BUILD_FD}/" || true
 
 # adjust build version
 sed -i "s|^version = \".*\"$|version = \"${BUILD_VER}\"|g" \
@@ -44,12 +44,13 @@ sed -i "s|^version = \".*\"$|version = \"${BUILD_VER}\"|g" \
 
 head_msg "\nBuilding source and wheel packages ..."
 (set -x
-    ${VENV_PYTHON} -m build "${BUILD_FD}/"
+    "${VENV_PYTHON}" -m build "${BUILD_FD}/"
 )
-if [ "$?" != "0" ]; then
-    error_msg "Error!! failed to build packages\n"
-    exit 1
-fi
+
+head_msg "\nValidating packages ..."
+(set -x
+    "${VENV_PYTHON}" -m twine check "${BUILD_FD}/dist/"*
+)
 
 # cleanup
 mkdir -m 775 -p "${DIST_FD}"

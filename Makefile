@@ -17,7 +17,7 @@ help:
 .PHONY: clean
 ## Clean build and cache files
 clean:
-	@rm -rf build*/ .pytest*/
+	@rm -rf build*/ site*/ .pytest*/
 	@find . -type d -name '__pycache__' -exec rm -rf {} +
 	@find . -type f -name '*.pyc' -exec rm -f {} +
 
@@ -33,11 +33,6 @@ clean-all: clean clean-dist
 	@head_msg "Cleaning all build, dist and cache files ..."
 	@find . -type d -name '*.egg-info' -exec rm -rf {} +
 	@find . -type d -name '*.dist-info' -exec rm -rf {} +
-
-.PHONY: host-update
-## Install and Update host requirements
-host-update:
-	@bash scripts/host_update.sh
 
 .PHONY: setup-dev
 ## Create development environment setup
@@ -55,19 +50,29 @@ pip-update:
 	@echo -e "\n"
 
 .PHONY: auto-format
-## Auto-format (black) Python code, tests and examples
+## Auto-format (ruff) Python code, tests and examples
 auto-format:
 	@source environ
-	@info_msg "\nAuto-format Python code with (black) ..."
-	@bash -c "$${VENV_PATH}/bin/black src/$${PACKAGE}/ tests/ examples/"
+	@info_msg "\nAuto-format Python code with (ruff) ..."
+	@bash -c "$${VENV_PATH}/bin/ruff format src/$${PACKAGE}/ tests/ \
+    	$$([ -d examples ] && echo examples/ || true)"
 	@echo -e "\n"
 
 .PHONY: lint-all
-## Run Python linters (flake8) on code, tests and examples
+## Run Python linters (ruff) on code, tests and examples
 lint-all:
 	@source environ
-	@info_msg "\nRunning flake8 linters ..."
-	@bash -c "$${VENV_PATH}/bin/flake8 src/$${PACKAGE} tests/ examples/"
+	@info_msg "\nRunning ruff linters ..."
+	@bash -c "$${VENV_PATH}/bin/ruff check src/$${PACKAGE} tests/ \
+    	$$([ -d examples ] && echo examples/ || true)"
+	@echo -e "\n"
+
+.PHONY: type-check
+## Run type checker (mypy) on code
+type-check:
+	@source environ
+	@info_msg "\nRunning mypy type checker ..."
+	@bash -c "$${VENV_PATH}/bin/mypy src/$${PACKAGE}/"
 	@echo -e "\n"
 
 .PHONY: run-tests
@@ -75,8 +80,13 @@ lint-all:
 run-tests:
 	@source environ
 	@info_msg "\nRunning tests ..."
-	@bash -c "$${VENV_PATH}/bin/pytest tests/"
+	@bash -c "$${VENV_PATH}/bin/pytest \
+		--cov=$${PACKAGE} --cov-report=term-missing tests/"
 	@echo -e "\n"
+
+.PHONY: check
+## Run lint, type check and tests
+check: lint-all type-check run-tests
 
 .PHONY: build
 ## Build the project packages
@@ -87,3 +97,32 @@ build: clean
 ## Prepare and build a release packages
 release: clean
 	@bash scripts/release.sh
+
+.PHONY: docs-build
+## Build static docs site
+docs-build:
+	@source environ
+	@info_msg "\nBuilding docs ..."
+	@rm -rf site*/
+	@bash -c "$${VENV_PATH}/bin/mkdocs build --clean"
+	@echo -e "\n"
+
+.PHONY: docs-deploy
+## Deploy versioned docs with mike (usage: make docs-deploy VER=X.Y [ALIAS=latest])
+docs-deploy:
+	@source environ
+	@[ -n "$${VER}" ] || { error_msg "\nError!! VER is required"; \
+		text_msg "usage: make docs-deploy VER=X.Y [ALIAS=latest]\n"; exit 1; }
+	@info_msg "\nDeploying docs version $${VER} ..."
+	@bash -c "PATH=$${VENV_PATH}/bin:$$PATH \
+		mike deploy --branch wiki --update-aliases $${VER} $${ALIAS}"
+	@bash -c "$${VENV_PATH}/bin/mike set-default --branch wiki latest"
+	@echo -e "\n"
+
+.PHONY: docs-serve
+## Serve docs locally for preview
+docs-serve:
+	@source environ
+	@info_msg "\nServing docs locally ..."
+	@bash -c "$${VENV_PATH}/bin/mike serve --branch wiki"
+	@echo -e "\n"

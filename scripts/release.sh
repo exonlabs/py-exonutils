@@ -47,7 +47,7 @@ head_msg "Committing and tagging release ..."
     git add ${PROJFILE}
     git commit -m "Release version ${RELEASE_VER}" ${PROJFILE}
 )
-if ! git tag "${RELEASE_TAG}" ; then
+if ! git tag -a "${RELEASE_TAG}" -m "Release ${RELEASE_VER}" ; then
     error_msg "Error!! Failed adding tag '${RELEASE_TAG}'\n"
     exit 1
 fi
@@ -63,7 +63,7 @@ set_version ${NEXT_VER}
 # install latest dev after version bump
 head_msg "\nInstalling new version in editable (dev) mode ..."
 (set -x
-    "${VENV_PIP}" install -e ./[dev]
+    "${VENV_PIP}" install -e ".[dev]"
 )
 
 success_msg "\nSuccessfully released:"
